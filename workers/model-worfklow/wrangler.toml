@@ -1,3 +1,4 @@
+
 name = "llm-workflow"
 main = "worker.ts"
 compatibility_date = "2025-10-22"
@@ -14,3 +15,7 @@ class_name = "LLMWorkflow"
 name = "CHAT_ROOM"
 class_name = "ChatRoom"
 script_name = "chat-room-do-worker"
+
+[[kv_namespaces]]
+binding = "CHAT_KV"
+id = "626c69cac022481db0a6c01737af6bf5"

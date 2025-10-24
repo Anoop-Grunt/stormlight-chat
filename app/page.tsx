@@ -10,16 +10,33 @@ import { Loader2 } from 'lucide-react';
 
 const WORKER_URL = 'https://chat-room-do-worker.feldspar.workers.dev';
 const WORKFLOW_URL = 'https://llm-workflow.feldspar.workers.dev';
+const LIST_CHATS_URL = "https://chat-list-worker.feldspar.workers.dev"
 
 export default function Page() {
   const [clientId, setClientId] = useState('test-client-1');
   const [isConnected, setIsConnected] = useState(false);
   const [messages, setMessages] = useState<Array<{ time: string; content: string; type: 'info' | 'message' | 'error' }>>([]);
-  const [promptText, setPromptText] = useState('Tell me a short story about a robot');
+  const [promptText, setPromptText] = useState('');
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [chatId, setChatId] = useState('default-chat');
   const eventSourceRef = useRef<EventSource | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [chatOptions, setChatOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchChatIds = async () => {
+      try {
+        const res = await fetch(LIST_CHATS_URL);
+        const data = await res.json();
+        setChatOptions(data.chatIds || []);
+      } catch (e) {
+        console.error('Failed to fetch chat IDs', e);
+      }
+    };
+
+    fetchChatIds();
+  }, []);
 
   const addMessage = (content: string, type: 'info' | 'message' | 'error' = 'info') => {
     setMessages(prev => [...prev, { time: new Date().toLocaleTimeString(), content, type }]);
@@ -91,12 +108,12 @@ export default function Page() {
       setIsGenerating(true);
       addMessage(`Starting workflow with prompt...`, 'info');
 
+
       const response = await fetch(WORKFLOW_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: promptText, clientId }),
+        body: JSON.stringify({ text: promptText, clientId, chatId }),
       });
-
       const result = await response.json();
       addMessage(`Workflow started: ${result.workflowId}`, 'info');
       setPromptText('');
@@ -121,13 +138,15 @@ export default function Page() {
         {/* Connection + workflow controls */}
         <Card>
           <CardHeader>
-            <CardTitle>SSE Durable Object Test</CardTitle>
+            <CardTitle>Chat Settings</CardTitle>
             <CardDescription>
               SSE Worker: {WORKER_URL}<br />
-              Workflow Worker: {WORKFLOW_URL}
+              Workflow Worker: {WORKFLOW_URL}<br />
+              List Chats Worker: {LIST_CHATS_URL}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+
             <div className="flex gap-2 items-end">
               <div className="flex-1">
                 <label className="text-sm font-medium mb-2 block">Client ID</label>
@@ -138,7 +157,35 @@ export default function Page() {
                   disabled={isConnected}
                 />
               </div>
-              <Button onClick={connect} disabled={isConnected}>Connect</Button>
+
+
+              <div className="flex-1">
+                <label className="text-sm font-medium mb-2 block">Chat ID</label>
+                <div className="flex gap-2">
+                  {/* Manual entry */}
+                  <Input
+                    value={chatId}
+                    onChange={(e) => setChatId(e.target.value)}
+                    placeholder="Enter chat ID"
+                    disabled={isConnected}
+                  />
+                  {/* Dropdown selection */}
+                  <select
+                    value={chatId}
+                    onChange={(e) => setChatId(e.target.value)}
+                    className="border rounded px-2 py-1"
+                    disabled={isConnected}
+                  >
+                    <option value="">Select existing chat</option>
+                    {chatOptions.map((id) => (
+                      <option key={id} value={id}>
+                        {id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <Button onClick={connect} disabled={isConnected || !chatId}>Connect</Button>
               <Button onClick={disconnect} disabled={!isConnected} variant="outline">Disconnect</Button>
             </div>
 
@@ -155,9 +202,9 @@ export default function Page() {
                 <Input
                   value={promptText}
                   onChange={(e) => setPromptText(e.target.value)}
-                  placeholder="Enter your prompt"
+                  placeholder={isConnected ? "Chat with a snobby classical music elitist" : `You can chat here after you "Connect"`}
                 />
-                <Button onClick={sendMessage} disabled={!isConnected || isGenerating}>
+                <Button onClick={sendMessage} disabled={!isConnected || isGenerating || !chatId}>
                   {isGenerating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Generate
                 </Button>
