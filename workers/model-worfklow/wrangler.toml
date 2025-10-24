@@ -1,0 +1,16 @@
+name = "llm-workflow"
+main = "worker.ts"
+compatibility_date = "2025-10-22"
+
+[ai]
+binding = "AI"
+
+[[workflows]]
+binding = "LLM_WORKFLOW"
+name = "llm-workflow"
+class_name = "LLMWorkflow"
+
+[[durable_objects.bindings]]
+name = "CHAT_ROOM"
+class_name = "ChatRoom"
+script_name = "chat-room-do-worker"

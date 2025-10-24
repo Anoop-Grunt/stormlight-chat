@@ -10,7 +10,7 @@ export class ChatRoom {
   }
 
   async fetch(request: Request): Promise<Response> {
-    const url: URL = new URL(request.url);
+    const url = new URL(request.url);
 
     if (url.pathname === '/connect') {
       return this.handleConnect(request);
@@ -21,7 +21,7 @@ export class ChatRoom {
     return new Response('Not found', { status: 404 });
   }
 
-  async handleConnect(request: Request): Promise<Response> {
+  handleConnect(request: Request): Response {
     const encoder: TextEncoder = new TextEncoder();
 
     const stream = new ReadableStream({
@@ -112,7 +112,7 @@ export interface Env {
   CHAT_ROOM: DurableObjectNamespace;
 }
 
-// Worker (main entry point)
+// SSE Worker - ONLY handles /register/:clientId
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url: URL = new URL(request.url);
@@ -122,7 +122,7 @@ export default {
       return new Response(null, {
         headers: {
           'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type',
         },
       });
@@ -145,23 +145,6 @@ export default {
       return stub.fetch(doUrl.toString(), request);
     }
 
-    // Route: /push/:clientId - Send message to specific client
-    if (url.pathname.startsWith('/push/') && request.method === 'POST') {
-      const clientId: string | undefined = url.pathname.split('/')[2];
-
-      if (!clientId) {
-        return new Response('Client ID required', { status: 400 });
-      }
-
-      const id: DurableObjectId = env.CHAT_ROOM.idFromName(clientId);
-      const stub: DurableObjectStub = env.CHAT_ROOM.get(id);
-
-      const doUrl: URL = new URL(request.url);
-      doUrl.pathname = '/send';
-
-      return stub.fetch(doUrl.toString(), request);
-    }
-
     return new Response('Not found', { status: 404 });
   }
-};;
+};

@@ -1,117 +1,232 @@
 
-"use client";
+'use client';
 
-import { useState, useRef, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Loader2 } from 'lucide-react';
 
-interface Message {
-  id: number;
-  sender: "user" | "server";
-  text: string;
-}
+const WORKER_URL = 'https://chat-room-do-worker.feldspar.workers.dev';
+const WORKFLOW_URL = 'https://llm-workflow.feldspar.workers.dev';
 
 export default function Page() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const clientIdRef = useRef<string>(Date.now().toString());
+  const [clientId, setClientId] = useState('test-client-1');
+  const [isConnected, setIsConnected] = useState(false);
+  const [messages, setMessages] = useState<Array<{ time: string; content: string; type: 'info' | 'message' | 'error' }>>([]);
+  const [promptText, setPromptText] = useState('Tell me a short story about a robot');
+  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const clientId = clientIdRef.current;
-    const evtSource = new EventSource(
-      `https://chat-room-do-worker.feldspar.workers.dev/register?clientId=${clientId}`
-    );
-    eventSourceRef.current = evtSource;
+  const addMessage = (content: string, type: 'info' | 'message' | 'error' = 'info') => {
+    setMessages(prev => [...prev, { time: new Date().toLocaleTimeString(), content, type }]);
+  };
 
-    evtSource.onmessage = (evt) => {
-      setMessages((prev) => [
-        ...prev,
-        { id: Date.now(), sender: "server", text: evt.data },
-      ]);
+  const connect = () => {
+    if (eventSourceRef.current) eventSourceRef.current.close();
+
+    addMessage(`Connecting to ${WORKER_URL}/register/${clientId}...`, 'info');
+    const eventSource = new EventSource(`${WORKER_URL}/register/${clientId}`);
+    eventSourceRef.current = eventSource;
+
+    eventSource.onopen = () => {
+      setIsConnected(true);
+      addMessage('✓ SSE connection established', 'info');
     };
 
-    evtSource.onerror = (err) => {
-      console.error("EventSource error:", err);
-      evtSource.close();
-    };
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
 
-    return () => {
-      evtSource.close();
+        if (data.type === 'message') {
+          const token = data.message;
+
+          if (token === '[DONE]') {
+            setIsGenerating(false);
+            addMessage(`Received: ${JSON.stringify(data, null, 2)}`, 'message');
+            return;
+          }
+
+          setChatMessages(prev => {
+            const last = prev[prev.length - 1];
+
+            if (last && last.role === 'assistant') {
+              return [
+                ...prev.slice(0, -1),
+                { ...last, content: last.content + token }
+              ];
+            } else {
+              return [...prev, { role: 'assistant', content: token }];
+            }
+          });
+        }
+
+        addMessage(`Received: ${JSON.stringify(data, null, 2)}`, 'message');
+      } catch {
+        addMessage(`Raw message: ${event.data}`, 'message');
+      }
     };
-  }, []);
+    eventSource.onerror = () => {
+      setIsConnected(false);
+      addMessage('✗ Connection error or closed', 'error');
+      eventSource.close();
+    };
+  };
+
+  const disconnect = () => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+      setIsConnected(false);
+      addMessage('Disconnected', 'info');
+    }
+  };
 
   const sendMessage = async () => {
-    const clientId = clientIdRef.current;
-    if (!input.trim()) return;
-
-    // Add the user message locally
-    const newMessage: Message = { id: Date.now(), sender: "user", text: input };
-    setMessages((prev) => [...prev, newMessage]);
-
-    // Send to the DO via POST
     try {
-      await fetch(
-        `https://chat-room-do-worker.feldspar.workers.dev/push?clientId=${clientId}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ msg: input }),
-        }
-      );
-    } catch (err) {
-      console.error("Failed to send message:", err);
-    }
+      setChatMessages(prev => [...prev, { role: 'user', content: promptText }]);
+      setIsGenerating(true);
+      addMessage(`Starting workflow with prompt...`, 'info');
 
-    setInput("");
+      const response = await fetch(WORKFLOW_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: promptText, clientId }),
+      });
+
+      const result = await response.json();
+      addMessage(`Workflow started: ${result.workflowId}`, 'info');
+      setPromptText('');
+    } catch (error) {
+      addMessage(`Workflow failed: ${error}`, 'error');
+      setIsGenerating(false);
+    }
   };
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [messages]);
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, isGenerating]);
+
+  useEffect(() => {
+    return () => eventSourceRef.current?.close();
+  }, []);
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-50">
-      <Card className="w-80 h-[400px] flex flex-col shadow-lg">
-        <CardContent className="flex-1 p-2">
-          <ScrollArea className="h-full">
-            <div ref={scrollRef} className="flex flex-col gap-2">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`p-2 rounded-md max-w-[70%] ${msg.sender === "user"
-                      ? "self-end bg-blue-500 text-white"
-                      : "self-start bg-gray-200 text-gray-900"
-                    }`}
-                >
-                  {msg.text}
+    <div className="min-h-screen bg-background p-8">
+      <div className="max-w-4xl mx-auto space-y-6">
+
+        {/* Connection + workflow controls */}
+        <Card>
+          <CardHeader>
+            <CardTitle>SSE Durable Object Test</CardTitle>
+            <CardDescription>
+              SSE Worker: {WORKER_URL}<br />
+              Workflow Worker: {WORKFLOW_URL}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className="text-sm font-medium mb-2 block">Client ID</label>
+                <Input
+                  value={clientId}
+                  onChange={(e) => setClientId(e.target.value)}
+                  placeholder="Enter client ID"
+                  disabled={isConnected}
+                />
+              </div>
+              <Button onClick={connect} disabled={isConnected}>Connect</Button>
+              <Button onClick={disconnect} disabled={!isConnected} variant="outline">Disconnect</Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Status:</span>
+              <Badge variant={isConnected ? "default" : "secondary"}>
+                {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
+              </Badge>
+            </div>
+
+            <div className="border-t pt-4 space-y-2">
+              <label className="text-sm font-medium block">Trigger AI Generation</label>
+              <div className="flex gap-2">
+                <Input
+                  value={promptText}
+                  onChange={(e) => setPromptText(e.target.value)}
+                  placeholder="Enter your prompt"
+                />
+                <Button onClick={sendMessage} disabled={!isConnected || isGenerating}>
+                  {isGenerating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Generate
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 💬 Chat UI */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Chat</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-muted rounded-lg p-4 h-96 overflow-y-auto space-y-4">
+              {chatMessages.length === 0 && (
+                <div className="text-muted-foreground text-center">No conversation yet...</div>
+              )}
+
+
+              {chatMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    className={`max-w-[80%] px-4 py-2 rounded-2xl text-sm wrap-break-word 
+      ${msg.role === 'user'
+                        ? 'bg-primary text-primary-foreground rounded-br-none'
+                        : 'bg-secondary text-secondary-foreground rounded-bl-none'
+                      }`}
+                  >
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+              {isGenerating && (
+                <div className="flex justify-start">
+                  <div className="bg-secondary text-secondary-foreground px-4 py-2 rounded-2xl rounded-bl-none text-sm flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Thinking...
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Debug Log */}
+        <Card>
+          <CardHeader><CardTitle>Debug Log</CardTitle></CardHeader>
+          <CardContent>
+            <div className="bg-muted rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm space-y-2">
+              {messages.length === 0 && (
+                <div className="text-muted-foreground">No messages yet...</div>
+              )}
+              {messages.map((msg, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <span className="text-muted-foreground shrink-0">[{msg.time}]</span>
+                  <span className={
+                    msg.type === 'error' ? 'text-red-500' :
+                      msg.type === 'message' ? 'text-green-600' :
+                        'text-foreground'
+                  }>
+                    {msg.content}
+                  </span>
                 </div>
               ))}
             </div>
-          </ScrollArea>
-        </CardContent>
-        <div className="flex gap-2 p-2 border-t">
-          <Textarea
-            placeholder="Type a message..."
-            className="flex-1 resize-none"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-              }
-            }}
-          />
-          <Button onClick={sendMessage}>Send</Button>
-        </div>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
