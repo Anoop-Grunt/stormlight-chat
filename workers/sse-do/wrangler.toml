@@ -1,0 +1,13 @@
+
+name = "chat-room-do-worker"
+main = "worker.ts"
+compatibility_date = "2025-10-22"
+
+[durable_objects]
+bindings = [
+  { name = "CHAT_ROOM", class_name = "ChatRoom" }
+]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["ChatRoom"]
