@@ -1,19 +1,16 @@
 import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from 'cloudflare:workers';
 
-// Workflow params
 export interface LLMWorkflowParams {
   text: string;
   clientId: string;
 }
 
-// Environment interface for workflow
 interface WorkflowEnv {
   CHAT_ROOM: DurableObjectNamespace;
   AI: Ai;
   LLM_WORKFLOW: Workflow;
 }
 
-// Workflow definition
 export class LLMWorkflow extends WorkflowEntrypoint<WorkflowEnv, LLMWorkflowParams> {
   async run(event: WorkflowEvent<LLMWorkflowParams>, step: WorkflowStep) {
     const { text, clientId } = event.payload;
@@ -60,7 +57,6 @@ export class LLMWorkflow extends WorkflowEntrypoint<WorkflowEnv, LLMWorkflowPara
                   });
                 }
               } catch (e) {
-                // Skip malformed JSON
               }
             }
           }
@@ -80,10 +76,8 @@ export class LLMWorkflow extends WorkflowEntrypoint<WorkflowEnv, LLMWorkflowPara
   }
 }
 
-// Worker handler for workflow - receives requests from Next.js
 export default {
   async fetch(request: Request, env: WorkflowEnv): Promise<Response> {
-    // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         headers: {
@@ -104,7 +98,6 @@ export default {
       return new Response('Missing text or clientId', { status: 400 });
     }
 
-    // Start the workflow
     const instance = await env.LLM_WORKFLOW.create({
       params: {
         text: body.text,
@@ -123,22 +116,3 @@ export default {
     });
   }
 };
-
-// wrangler.toml for Workflow:
-//
-// name = "llm-workflow"
-// main = "src/llm-workflow.ts"
-// compatibility_date = "2024-01-01"
-//
-// [ai]
-// binding = "AI"
-//
-// [[workflows]]
-// binding = "LLM_WORKFLOW"
-// name = "llm-workflow"
-// class_name = "LLMWorkflow"
-//
-// [[durable_objects.bindings]]
-// name = "CHAT_ROOM"
-// class_name = "ChatRoom"
-// script_name = "sse-worker"  # Points to the SSE worker's DO
