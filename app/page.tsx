@@ -124,7 +124,9 @@ export default function Page() {
   };
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatMessages.length > 0) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [chatMessages, isGenerating]);
 
   useEffect(() => {
@@ -185,7 +187,7 @@ export default function Page() {
                   </select>
                 </div>
               </div>
-              <Button onClick={connect} disabled={isConnected || !chatId}>Connect</Button>
+              <Button className={`${!isConnected ? 'animate-bounce' : ''}`} onClick={connect} disabled={isConnected || !chatId}>Connect</Button>
               <Button onClick={disconnect} disabled={!isConnected} variant="outline">Disconnect</Button>
             </div>
 
@@ -202,6 +204,8 @@ export default function Page() {
                 <Input
                   value={promptText}
                   onChange={(e) => setPromptText(e.target.value)}
+                  disabled={!isConnected}
+                  className={`${isConnected ? 'cursor-text' : 'cursor-not-allowed'}`}
                   placeholder={isConnected ? "Chat with a snobby classical music elitist" : `You can chat here after you "Connect"`}
                 />
                 <Button onClick={sendMessage} disabled={!isConnected || isGenerating || !chatId}>
@@ -213,66 +217,66 @@ export default function Page() {
           </CardContent>
         </Card>
 
-        {/* 💬 Chat UI */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Chat</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-muted rounded-lg p-4 h-96 overflow-y-auto space-y-4">
-              {chatMessages.length === 0 && (
-                <div className="text-muted-foreground text-center">No conversation yet...</div>
-              )}
+        <div className='grid grid-cols-4 gap-2 justify-around'>
+          <Card className='col-span-2'>
+            <CardHeader>
+              <CardTitle>Chat</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-muted rounded-lg p-4 h-96 overflow-y-auto space-y-4">
+                {chatMessages.length === 0 && (
+                  <div className="text-muted-foreground text-center">No conversation yet...</div>
+                )}
 
 
-              {chatMessages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div
-                    className={`max-w-[80%] px-4 py-2 rounded-2xl text-sm wrap-break-word 
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      className={`max-w-[80%] px-4 py-2 rounded-2xl text-sm wrap-break-word 
       ${msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-br-none'
-                        : 'bg-secondary text-secondary-foreground rounded-bl-none'
-                      }`}
-                  >
-                    {msg.content}
+                          ? 'bg-primary text-primary-foreground rounded-br-none'
+                          : 'bg-secondary text-secondary-foreground rounded-bl-none'
+                        }`}
+                    >
+                      {msg.content}
+                    </div>
                   </div>
-                </div>
-              ))}
-              {isGenerating && (
-                <div className="flex justify-start">
-                  <div className="bg-secondary text-secondary-foreground px-4 py-2 rounded-2xl rounded-bl-none text-sm flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Thinking...
+                ))}
+                {isGenerating && (
+                  <div className="flex justify-start">
+                    <div className="bg-secondary text-secondary-foreground px-4 py-2 rounded-2xl rounded-bl-none text-sm flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" /> Thinking...
+                    </div>
                   </div>
-                </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-          </CardContent>
-        </Card>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Debug Log */}
-        <Card>
-          <CardHeader><CardTitle>Debug Log</CardTitle></CardHeader>
-          <CardContent>
-            <div className="bg-muted rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm space-y-2">
-              {messages.length === 0 && (
-                <div className="text-muted-foreground">No messages yet...</div>
-              )}
-              {messages.map((msg, idx) => (
-                <div key={idx} className="flex gap-2">
-                  <span className="text-muted-foreground shrink-0">[{msg.time}]</span>
-                  <span className={
-                    msg.type === 'error' ? 'text-red-500' :
-                      msg.type === 'message' ? 'text-green-600' :
-                        'text-foreground'
-                  }>
-                    {msg.content}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+          <Card className='col-span-2'>
+            <CardHeader><CardTitle>Debug Log</CardTitle></CardHeader>
+            <CardContent>
+              <div className="bg-muted rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm space-y-2">
+                {messages.length === 0 && (
+                  <div className="text-muted-foreground">No messages yet...</div>
+                )}
+                {messages.map((msg, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <span className="text-muted-foreground shrink-0">[{msg.time}]</span>
+                    <span className={
+                      msg.type === 'error' ? 'text-red-500' :
+                        msg.type === 'message' ? 'text-green-600' :
+                          'text-foreground'
+                    }>
+                      {msg.content}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

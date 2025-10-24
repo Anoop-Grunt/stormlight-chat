@@ -47,6 +47,7 @@ export class LLMWorkflow extends WorkflowEntrypoint<WorkflowEnv, LLMWorkflowPara
     await step.do('stream-llm-response', async () => {
       const response = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
         messages: chatMessages,
+        max_tokens: 1000,
         stream: true,
       });
       const reader = response.getReader();

@@ -39,6 +39,7 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
+    "workers",
     "node_modules"
   ],
   "references": [
