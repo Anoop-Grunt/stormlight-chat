@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
-
+import { v6 } from "uuid"
 import {
   Select,
   SelectContent,
@@ -20,15 +20,15 @@ import {
 const WORKER_URL = 'https://chat-room-do-worker.feldspar.workers.dev';
 const WORKFLOW_URL = 'https://llm-workflow.feldspar.workers.dev';
 const LIST_CHATS_URL = "https://chat-list-worker.feldspar.workers.dev"
-
+const RETRIEVE_CHAT_URL = `https://chat-retrieve-worker.feldspar.workers.dev?chatId=`
 export default function Page() {
-  const [clientId, setClientId] = useState('test-client-1');
+  const [clientId, setClientId] = useState(`${v6()}`);
   const [isConnected, setIsConnected] = useState(false);
   const [debugMessages, setDebugMessages] = useState<Array<{ time: string; content: string; type: 'info' | 'message' | 'error' }>>([]);
   const [promptText, setPromptText] = useState('');
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant' | 'system'; content: string }>>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [chatId, setChatId] = useState('default-chat');
+  const [chatId, setChatId] = useState('');
   const eventSourceRef = useRef<EventSource | null>(null);
   const debugEndRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -59,7 +59,7 @@ export default function Page() {
     addMessage(`Connecting to ${WORKER_URL}/register/${clientId}...`, 'info');
 
     try {
-      const res = await fetch(`https://chat-retrieve-worker.feldspar.workers.dev?chatId=${chatId}`);
+      const res = await fetch(`${RETRIEVE_CHAT_URL}${chatId}`);
       const data = await res.json();
       setChatMessages(Array.isArray(data.chatMessages) ? data.chatMessages : []);
       addMessage(`Chat state loaded from KV (${chatId})`, 'info');
@@ -182,18 +182,18 @@ export default function Page() {
 
 
               <div className="flex-1">
-                <label className="text-sm font-medium mb-2 block">Chat ID</label>
+                <label className="text-sm font-medium mb-2 block">Chat Name</label>
                 <div className="flex gap-2">
                   {/* Manual entry */}
                   <Input
                     value={chatId}
                     onChange={(e) => setChatId(e.target.value)}
-                    placeholder="Enter chat ID"
+                    placeholder="Enter chat name"
                     disabled={isConnected}
                   />
                   <Select disabled={isConnected} onValueChange={setChatId} value={chatId}>
                     <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Select Chat" />
+                      <SelectValue placeholder="Past Chats" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
@@ -302,7 +302,8 @@ export default function Page() {
       <div className='p-4 text-xs text-slate-400 w-full flex justify-start flex-col items-center'>
         SSE Worker: {WORKER_URL}<br />
         Workflow Worker: {WORKFLOW_URL}<br />
-        List Chats Worker: {LIST_CHATS_URL}
+        List Chats Worker: {LIST_CHATS_URL} <br />
+        Retrieve Chats URL: {RETRIEVE_CHAT_URL}
       </div>
     </div>
   );
