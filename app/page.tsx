@@ -8,6 +8,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
 
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 const WORKER_URL = 'https://chat-room-do-worker.feldspar.workers.dev';
 const WORKFLOW_URL = 'https://llm-workflow.feldspar.workers.dev';
 const LIST_CHATS_URL = "https://chat-list-worker.feldspar.workers.dev"
@@ -15,12 +24,13 @@ const LIST_CHATS_URL = "https://chat-list-worker.feldspar.workers.dev"
 export default function Page() {
   const [clientId, setClientId] = useState('test-client-1');
   const [isConnected, setIsConnected] = useState(false);
-  const [messages, setMessages] = useState<Array<{ time: string; content: string; type: 'info' | 'message' | 'error' }>>([]);
+  const [debugMessages, setDebugMessages] = useState<Array<{ time: string; content: string; type: 'info' | 'message' | 'error' }>>([]);
   const [promptText, setPromptText] = useState('');
-  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant' | 'system'; content: string }>>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [chatId, setChatId] = useState('default-chat');
   const eventSourceRef = useRef<EventSource | null>(null);
+  const debugEndRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [chatOptions, setChatOptions] = useState<string[]>([]);
 
@@ -39,13 +49,26 @@ export default function Page() {
   }, []);
 
   const addMessage = (content: string, type: 'info' | 'message' | 'error' = 'info') => {
-    setMessages(prev => [...prev, { time: new Date().toLocaleTimeString(), content, type }]);
+    setDebugMessages(prev => [...prev, { time: new Date().toLocaleTimeString(), content, type }]);
   };
 
-  const connect = () => {
+
+  const connect = async () => {
     if (eventSourceRef.current) eventSourceRef.current.close();
 
     addMessage(`Connecting to ${WORKER_URL}/register/${clientId}...`, 'info');
+
+    try {
+      const res = await fetch(`https://chat-retrieve-worker.feldspar.workers.dev?chatId=${chatId}`);
+      const data = await res.json();
+      setChatMessages(Array.isArray(data.chatMessages) ? data.chatMessages : []);
+      addMessage(`Chat state loaded from KV (${chatId})`, 'info');
+    } catch (err) {
+      console.error('Failed to fetch chat from KV', err);
+      setChatMessages([]);
+      addMessage(`Failed to load chat from KV, starting fresh`, 'error');
+    }
+
     const eventSource = new EventSource(`${WORKER_URL}/register/${clientId}`);
     eventSourceRef.current = eventSource;
 
@@ -69,12 +92,8 @@ export default function Page() {
 
           setChatMessages(prev => {
             const last = prev[prev.length - 1];
-
             if (last && last.role === 'assistant') {
-              return [
-                ...prev.slice(0, -1),
-                { ...last, content: last.content + token }
-              ];
+              return [...prev.slice(0, -1), { ...last, content: last.content + token }];
             } else {
               return [...prev, { role: 'assistant', content: token }];
             }
@@ -86,6 +105,7 @@ export default function Page() {
         addMessage(`Raw message: ${event.data}`, 'message');
       }
     };
+
     eventSource.onerror = () => {
       setIsConnected(false);
       addMessage('✗ Connection error or closed', 'error');
@@ -129,6 +149,14 @@ export default function Page() {
     }
   }, [chatMessages, isGenerating]);
 
+
+  useEffect(() => {
+    if (debugMessages.length > 0) {
+      debugEndRef.current?.scrollIntoView({ behavior: 'instant' });
+    }
+  }, [debugMessages]);
+
+
   useEffect(() => {
     return () => eventSourceRef.current?.close();
   }, []);
@@ -139,14 +167,6 @@ export default function Page() {
 
         {/* Connection + workflow controls */}
         <Card>
-          <CardHeader>
-            <CardTitle>Chat Settings</CardTitle>
-            <CardDescription>
-              SSE Worker: {WORKER_URL}<br />
-              Workflow Worker: {WORKFLOW_URL}<br />
-              List Chats Worker: {LIST_CHATS_URL}
-            </CardDescription>
-          </CardHeader>
           <CardContent className="space-y-4">
 
             <div className="flex gap-2 items-end">
@@ -171,20 +191,21 @@ export default function Page() {
                     placeholder="Enter chat ID"
                     disabled={isConnected}
                   />
-                  {/* Dropdown selection */}
-                  <select
-                    value={chatId}
-                    onChange={(e) => setChatId(e.target.value)}
-                    className="border rounded px-2 py-1"
-                    disabled={isConnected}
-                  >
-                    <option value="">Select existing chat</option>
-                    {chatOptions.map((id) => (
-                      <option key={id} value={id}>
-                        {id}
-                      </option>
-                    ))}
-                  </select>
+                  <Select disabled={isConnected} onValueChange={setChatId} value={chatId}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Select Chat" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+
+                        {chatOptions.map((id) => (
+                          <SelectItem value={id} key={id}>
+                            {id}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <Button className={`${!isConnected ? 'animate-bounce' : ''}`} onClick={connect} disabled={isConnected || !chatId}>Connect</Button>
@@ -198,22 +219,6 @@ export default function Page() {
               </Badge>
             </div>
 
-            <div className="border-t pt-4 space-y-2">
-              <label className="text-sm font-medium block">Trigger AI Generation</label>
-              <div className="flex gap-2">
-                <Input
-                  value={promptText}
-                  onChange={(e) => setPromptText(e.target.value)}
-                  disabled={!isConnected}
-                  className={`${isConnected ? 'cursor-text' : 'cursor-not-allowed'}`}
-                  placeholder={isConnected ? "Chat with a snobby classical music elitist" : `You can chat here after you "Connect"`}
-                />
-                <Button onClick={sendMessage} disabled={!isConnected || isGenerating || !chatId}>
-                  {isGenerating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Generate
-                </Button>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
@@ -236,7 +241,7 @@ export default function Page() {
       ${msg.role === 'user'
                           ? 'bg-primary text-primary-foreground rounded-br-none'
                           : 'bg-secondary text-secondary-foreground rounded-bl-none'
-                        }`}
+                        } ${msg.role === 'system' ? 'hidden' : ''}`}
                     >
                       {msg.content}
                     </div>
@@ -252,16 +257,31 @@ export default function Page() {
                 <div ref={chatEndRef} />
               </div>
             </CardContent>
+            <div className="border-t px-6 pt-4 space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  value={promptText}
+                  onChange={(e) => setPromptText(e.target.value)}
+                  disabled={!isConnected}
+                  className={`${isConnected ? 'cursor-text' : 'cursor-not-allowed'}`}
+                  placeholder={isConnected ? "Chat with a snobby llama" : `You can chat after you "Connect"`}
+                />
+                <Button className='animate-bounce disabled:animate-none' onClick={sendMessage} disabled={!isConnected || isGenerating || !chatId}>
+                  {isGenerating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Send Message
+                </Button>
+              </div>
+            </div>
           </Card>
 
           <Card className='col-span-2'>
             <CardHeader><CardTitle>Debug Log</CardTitle></CardHeader>
             <CardContent>
               <div className="bg-muted rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm space-y-2">
-                {messages.length === 0 && (
+                {debugMessages.length === 0 && (
                   <div className="text-muted-foreground">No messages yet...</div>
                 )}
-                {messages.map((msg, idx) => (
+                {debugMessages.map((msg, idx) => (
                   <div key={idx} className="flex gap-2">
                     <span className="text-muted-foreground shrink-0">[{msg.time}]</span>
                     <span className={
@@ -273,10 +293,16 @@ export default function Page() {
                     </span>
                   </div>
                 ))}
+                <div ref={debugEndRef} />
               </div>
             </CardContent>
           </Card>
         </div>
+      </div>
+      <div className='p-4 text-xs text-slate-400 w-full flex justify-start flex-col items-center'>
+        SSE Worker: {WORKER_URL}<br />
+        Workflow Worker: {WORKFLOW_URL}<br />
+        List Chats Worker: {LIST_CHATS_URL}
       </div>
     </div>
   );

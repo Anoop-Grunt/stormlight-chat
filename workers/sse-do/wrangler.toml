@@ -4,10 +4,15 @@ main = "worker.ts"
 compatibility_date = "2025-10-22"
 
 [durable_objects]
-bindings = [
-  { name = "CHAT_ROOM", class_name = "ChatRoom" }
-]
+bindings = [{ name = "CHAT_ROOM", class_name = "ChatRoom" }]
 
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["ChatRoom"]
+
+[observability]
+[observability.logs]
+enabled = false
+head_sampling_rate = 1
+invocation_logs = true
+persist = true

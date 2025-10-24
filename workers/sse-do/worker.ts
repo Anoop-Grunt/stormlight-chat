@@ -35,7 +35,7 @@ export class ChatRoom {
         // Keepalive every 15 seconds
         const keepAlive = setInterval(() => {
           try {
-            controller.enqueue(encoder.encode(': keepalive\n\n'));
+            controller.enqueue(encoder.encode(`: keepalive at ${new Date().getTime()}\n\n`));
           } catch (e) {
             clearInterval(keepAlive);
           }
