@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -6,21 +5,31 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Send, Sparkles, Terminal, MessageSquare, Link2, Plus, Smile, Frown, Meh, Laugh, User } from 'lucide-react';
 import { v6 } from "uuid"
 import {
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ScrollArea } from "@/components/ui/scroll-area"
+
 const WORKER_URL = 'https://chat-room-do-worker.feldspar.workers.dev';
 const WORKFLOW_URL = 'https://llm-workflow.feldspar.workers.dev';
 const LIST_CHATS_URL = "https://chat-list-worker.feldspar.workers.dev"
 const RETRIEVE_CHAT_URL = `https://chat-retrieve-worker.feldspar.workers.dev?chatId=`
+
+const PERSONAS = [
+  { id: 'friendly', name: 'Friendly', icon: Smile, color: 'text-green-500' },
+  { id: 'neutral', name: 'Neutral', icon: Meh, color: 'text-slate-500' },
+  { id: 'professional', name: 'Professional', icon: User, color: 'text-blue-500' },
+  { id: 'sarcastic', name: 'Sarcastic', icon: Laugh, color: 'text-purple-500' },
+  { id: 'snobby', name: 'Snobby', icon: Frown, color: 'text-amber-500' },
+];
+
 export default function Page() {
   const [clientId, setClientId] = useState(`${v6()}`);
   const [isConnected, setIsConnected] = useState(false);
@@ -29,6 +38,7 @@ export default function Page() {
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant' | 'system'; content: string }>>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [chatId, setChatId] = useState('');
+  const [selectedPersona, setSelectedPersona] = useState('friendly');
   const eventSourceRef = useRef<EventSource | null>(null);
   const debugEndRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -51,7 +61,6 @@ export default function Page() {
   const addMessage = (content: string, type: 'info' | 'message' | 'error' = 'info') => {
     setDebugMessages(prev => [...prev, { time: new Date().toLocaleTimeString(), content, type }]);
   };
-
 
   const connect = async () => {
     if (eventSourceRef.current) eventSourceRef.current.close();
@@ -128,11 +137,10 @@ export default function Page() {
       setIsGenerating(true);
       addMessage(`Starting workflow with prompt...`, 'info');
 
-
       const response = await fetch(WORKFLOW_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: promptText, clientId, chatId }),
+        body: JSON.stringify({ text: promptText, clientId, chatId, persona: selectedPersona }),
       });
       const result = await response.json();
       addMessage(`Workflow started: ${result.workflowId}`, 'info');
@@ -149,145 +157,270 @@ export default function Page() {
     }
   }, [chatMessages, isGenerating]);
 
-
   useEffect(() => {
     if (debugMessages.length > 0) {
       debugEndRef.current?.scrollIntoView({ behavior: 'instant' });
     }
   }, [debugMessages]);
 
-
   useEffect(() => {
     return () => eventSourceRef.current?.close();
   }, []);
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex">
+      {/* Sidebar */}
+      <div className="w-80 border-r bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl flex flex-col">
+        {/* Sidebar Header */}
+        <div className="p-6 border-b">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                Edge AI Chat
+              </h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Cloudflare Workers</p>
+            </div>
+          </div>
 
-        {/* Connection + workflow controls */}
-        <Card>
-          <CardContent className="space-y-4">
+          <Badge variant={isConnected ? "default" : "secondary"} className="gap-2 w-full justify-center">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-slate-400'}`} />
+            {isConnected ? 'Connected' : 'Disconnected'}
+          </Badge>
+        </div>
 
-            <div className="flex gap-2 items-end">
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-2 block">Client ID</label>
-                <Input
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                  placeholder="Enter client ID"
-                  disabled={isConnected}
-                />
-              </div>
+        {/* Chat Selection */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <div className="p-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                Chat Session
+              </label>
+              <Input
+                value={chatId}
+                onChange={(e) => setChatId(e.target.value)}
+                placeholder="Enter or create chat name"
+                disabled={isConnected}
+                className="text-sm"
+              />
+              <Button
+                onClick={isConnected ? disconnect : connect}
+                disabled={!isConnected && !chatId}
+                className={`w-full ${isConnected
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                  } ${!isConnected && chatId ? 'animate-bounce' : ''}`}
+                size="sm"
+              >
+                {isConnected ? (
+                  <>
+                    <Link2 className="w-4 h-4 mr-2" />
+                    Disconnect
+                  </>
+                ) : (
+                  <>
+                    <Link2 className="w-4 h-4 mr-2" />
+                    Connect
+                  </>
+                )}
+              </Button>
+            </div>
 
-
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-2 block">Chat Name</label>
-                <div className="flex gap-2">
-                  {/* Manual entry */}
-                  <Input
-                    value={chatId}
-                    onChange={(e) => setChatId(e.target.value)}
-                    placeholder="Enter chat name"
-                    disabled={isConnected}
-                  />
-                  <Select disabled={isConnected} onValueChange={setChatId} value={chatId}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Past Chats" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-
-                        {chatOptions.map((id) => (
-                          <SelectItem value={id} key={id}>
-                            {id}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                Previous Chats
+              </label>
+              <ScrollArea className="h-48 rounded-lg border bg-slate-50 dark:bg-slate-950/50">
+                <div className="p-2 space-y-1">
+                  {chatOptions.length === 0 && (
+                    <div className="text-xs text-slate-400 text-center py-8">
+                      No saved chats yet
+                    </div>
+                  )}
+                  {chatOptions.map((id) => (
+                    <Button
+                      key={id}
+                      variant={chatId === id ? "secondary" : "ghost"}
+                      className="w-full justify-start text-xs h-8"
+                      onClick={() => !isConnected && setChatId(id)}
+                      disabled={isConnected}
+                    >
+                      <MessageSquare className="w-3 h-3 mr-2" />
+                      {id}
+                    </Button>
+                  ))}
                 </div>
+              </ScrollArea>
+            </div>
+          </div>
+
+          {/* Connection Info */}
+          <div className="p-4 border-t mt-auto">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                Client ID
+              </label>
+              <Input
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                disabled={isConnected}
+                className="font-mono text-xs"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="border-b bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl p-4 flex-shrink-0">
+          <div className="flex items-center justify-start gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                {chatId || 'No Chat Selected'}
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {selectedPersona && `Persona: ${PERSONAS.find(p => p.id === selectedPersona)?.name}`}
+              </p>
+            </div>
+
+            {/* Persona Selection */}
+            <div className={`flex items-center scale-90 gap-2 ${!isConnected ? 'animate-bounce' : 'animate-none'}`}>
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Persona:</span>
+              {PERSONAS.map((persona) => {
+                const Icon = persona.icon;
+                return (
+                  <button
+                    key={persona.id}
+                    onClick={() => setSelectedPersona(persona.id)}
+                    disabled={isConnected}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all
+                      ${selectedPersona === persona.id
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 scale-110'
+                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                      }
+                      ${isConnected ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105'}
+                    `}
+                    title={persona.name}
+                  >
+                    <Icon className={`w-5 h-5 ${persona.color}`} />
+                    <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300">
+                      {persona.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Chat and Debug Grid */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 overflow-hidden">
+          {/* Chat Panel */}
+          <Card className="border-2 shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex flex-col overflow-hidden h-[70vh]">
+            <CardHeader className="border-b flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-indigo-600" />
+                <CardTitle>Conversation</CardTitle>
               </div>
-              <Button className={`${!isConnected ? 'animate-bounce' : ''}`} onClick={connect} disabled={isConnected || !chatId}>Connect</Button>
-              <Button onClick={disconnect} disabled={!isConnected} variant="outline">Disconnect</Button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Status:</span>
-              <Badge variant={isConnected ? "default" : "secondary"}>
-                {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
-              </Badge>
-            </div>
-
-          </CardContent>
-        </Card>
-
-        <div className='grid grid-cols-4 gap-2 justify-around'>
-          <Card className='col-span-2'>
-            <CardHeader>
-              <CardTitle>Chat</CardTitle>
+              <CardDescription>Chat with the AI assistant in real-time</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="bg-muted rounded-lg p-4 h-96 overflow-y-auto space-y-4">
+
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="space-y-3">
                 {chatMessages.length === 0 && (
-                  <div className="text-muted-foreground text-center">No conversation yet...</div>
+                  <div className="flex items-center justify-center h-full min-h-[400px]">
+                    <div className="text-center space-y-2">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 flex items-center justify-center mx-auto">
+                        <MessageSquare className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <p className="text-slate-500 dark:text-slate-400 text-sm">No conversation yet</p>
+                      <p className="text-xs text-slate-400">Connect and start chatting!</p>
+                    </div>
+                  </div>
                 )}
 
-
                 {chatMessages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                     <div
-                      className={`max-w-[80%] px-4 py-2 rounded-2xl text-sm wrap-break-word 
-      ${msg.role === 'user'
-                          ? 'bg-primary text-primary-foreground rounded-br-none'
-                          : 'bg-secondary text-secondary-foreground rounded-bl-none'
+                      className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm shadow-md
+                        ${msg.role === 'user'
+                          ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-sm'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-bl-sm border border-slate-200 dark:border-slate-700'
                         } ${msg.role === 'system' ? 'hidden' : ''}`}
                     >
-                      {msg.content}
+                      <div className="whitespace-pre-wrap break-words">{msg.content}</div>
                     </div>
                   </div>
                 ))}
+
                 {isGenerating && (
-                  <div className="flex justify-start">
-                    <div className="bg-secondary text-secondary-foreground px-4 py-2 rounded-2xl rounded-bl-none text-sm flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" /> Thinking...
+                  <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="bg-slate-100 dark:bg-slate-800 px-4 py-3 rounded-2xl rounded-bl-sm text-sm flex items-center gap-2 shadow-md border border-slate-200 dark:border-slate-700">
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                      <span className="text-slate-600 dark:text-slate-400">Thinking...</span>
                     </div>
                   </div>
                 )}
                 <div ref={chatEndRef} />
               </div>
-            </CardContent>
-            <div className="border-t px-6 pt-4 space-y-2">
+            </div>
+
+            <div className="border-t p-4 bg-slate-50/50 dark:bg-slate-900/50 flex-shrink-0">
               <div className="flex gap-2">
                 <Input
                   value={promptText}
                   onChange={(e) => setPromptText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey && isConnected && !isGenerating && chatId) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
                   disabled={!isConnected}
-                  className={`${isConnected ? 'cursor-text' : 'cursor-not-allowed'}`}
-                  placeholder={isConnected ? "Chat with a snobby llama" : `You can chat after you "Connect"`}
+                  placeholder={isConnected ? "Type your message..." : "Connect to start chatting"}
+                  className="flex-1 shadow-sm"
                 />
-                <Button className='animate-bounce disabled:animate-none' onClick={sendMessage} disabled={!isConnected || isGenerating || !chatId}>
-                  {isGenerating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Send Message
+                <Button
+                  onClick={sendMessage}
+                  disabled={!isConnected || isGenerating || !chatId}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg px-6"
+                >
+                  {isGenerating ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
             </div>
           </Card>
 
-          <Card className='col-span-2'>
-            <CardHeader><CardTitle>Debug Log</CardTitle></CardHeader>
-            <CardContent>
-              <div className="bg-muted rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm space-y-2">
+          {/* Debug Panel */}
+          <Card className="border-2 shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex flex-col overflow-hidden h-[70vh]">
+            <CardHeader className="border-b flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <Terminal className="w-5 h-5 text-emerald-600" />
+                <CardTitle>Debug Console</CardTitle>
+              </div>
+              <CardDescription>Real-time event stream and system logs</CardDescription>
+            </CardHeader>
+
+            <div className="flex-1 overflow-y-auto bg-slate-950 dark:bg-black p-4 font-mono text-xs">
+              <div className="space-y-1">
                 {debugMessages.length === 0 && (
-                  <div className="text-muted-foreground">No messages yet...</div>
+                  <div className="text-slate-500 italic">Waiting for events...</div>
                 )}
                 {debugMessages.map((msg, idx) => (
-                  <div key={idx} className="flex gap-2">
-                    <span className="text-muted-foreground shrink-0">[{msg.time}]</span>
+                  <div key={idx} className="flex gap-2 hover:bg-slate-900/50 px-2 py-1 rounded">
+                    <span className="text-slate-600 shrink-0">[{msg.time}]</span>
                     <span className={
-                      msg.type === 'error' ? 'text-red-500' :
-                        msg.type === 'message' ? 'text-green-600' :
-                          'text-foreground'
+                      msg.type === 'error' ? 'text-red-400' :
+                        msg.type === 'message' ? 'text-emerald-400' :
+                          'text-slate-300'
                     }>
                       {msg.content}
                     </span>
@@ -295,17 +428,36 @@ export default function Page() {
                 ))}
                 <div ref={debugEndRef} />
               </div>
-            </CardContent>
+            </div>
           </Card>
         </div>
-      </div>
-      <div className='p-4 text-xs text-slate-400 w-full flex justify-start flex-col items-center'>
-        SSE Worker: {WORKER_URL}<br />
-        Workflow Worker: {WORKFLOW_URL}<br />
-        List Chats Worker: {LIST_CHATS_URL} <br />
-        Retrieve Chats URL: {RETRIEVE_CHAT_URL}
+
+        {/* Footer Info */}
+        <div className="border-t bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm p-4 flex-shrink-0">
+          <div className="text-xs text-slate-500 dark:text-slate-400 grid grid-cols-2 gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500" />
+              <span className="font-semibold">SSE:</span>
+              <code className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[10px]">{WORKER_URL}</code>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-indigo-500" />
+              <span className="font-semibold">Workflow:</span>
+              <code className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[10px]">{WORKFLOW_URL}</code>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-purple-500" />
+              <span className="font-semibold">List:</span>
+              <code className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[10px]">{LIST_CHATS_URL}</code>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-pink-500" />
+              <span className="font-semibold">Retrieve:</span>
+              <code className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[10px]">{RETRIEVE_CHAT_URL}</code>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
-
