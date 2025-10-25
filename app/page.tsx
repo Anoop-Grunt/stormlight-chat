@@ -397,7 +397,7 @@ export default function Page() {
               <CardDescription>Real-time SSE & workflow messages</CardDescription>
             </CardHeader>
 
-            <ScrollArea className="flex-1 p-4">
+            <div className="flex-1 p-4 overflow-y-scroll">
               <div className="space-y-1 font-mono text-xs">
                 {debugMessages.map((msg, i) => (
                   <div key={i} className={`whitespace-pre-wrap wrap-break-word ${msg.type === 'info' ? 'text-slate-700 dark:text-slate-300' : msg.type === 'error' ? 'text-red-500' : 'text-blue-600'}`}>
@@ -406,7 +406,7 @@ export default function Page() {
                 ))}
                 <div ref={debugEndRef} />
               </div>
-            </ScrollArea>
+            </div>
           </Card>
 
 
