@@ -123,6 +123,9 @@ export default function Page() {
       eventSourceRef.current = null;
       setIsConnected(false);
       addMessage('Disconnected', 'info');
+      setChatId('')
+      setClientId(v6().toString())
+      setIsGenerating((false))
       //Maybe a new chat got added? so refetch, but since it's edge, wait a sec
       setTimeout(() => { fetchChatIds() }, 1000);
     }
