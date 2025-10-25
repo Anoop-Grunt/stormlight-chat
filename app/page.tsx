@@ -1,33 +1,27 @@
-'use client';
+'use client'
 
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Send, Sparkles, Terminal, MessageSquare, Link2, Plus, Smile, Frown, Meh, Laugh, User } from 'lucide-react';
-import { v6 } from "uuid"
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Loader2, Send, Sparkles, Terminal, MessageSquare, Link2, User } from 'lucide-react';
+import { v6 } from "uuid";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const WORKER_URL = 'https://chat-room-do-worker.feldspar.workers.dev';
 const WORKFLOW_URL = 'https://llm-workflow.feldspar.workers.dev';
 const LIST_CHATS_URL = "https://chat-list-worker.feldspar.workers.dev"
 const RETRIEVE_CHAT_URL = `https://chat-retrieve-worker.feldspar.workers.dev?chatId=`
 
+// Stormlight Archive Characters as Personas
 const PERSONAS = [
-  { id: 'friendly', name: 'Friendly', icon: Smile, color: 'text-green-500' },
-  { id: 'neutral', name: 'Neutral', icon: Meh, color: 'text-slate-500' },
-  { id: 'professional', name: 'Professional', icon: User, color: 'text-blue-500' },
-  { id: 'sarcastic', name: 'Sarcastic', icon: Laugh, color: 'text-purple-500' },
-  { id: 'snobby', name: 'Snobby', icon: Frown, color: 'text-amber-500' },
+  { id: 'kaladin', name: 'Kaladin', icon: User, accent: 'from-sky-500 to-indigo-700', bg: 'from-sky-50 via-blue-50 to-indigo-100', text: 'text-blue-600' },
+  { id: 'shallan', name: 'Shallan', icon: User, accent: 'from-rose-400 to-pink-600', bg: 'from-rose-50 via-pink-50 to-rose-100', text: 'text-rose-600' },
+  { id: 'dalinar', name: 'Dalinar', icon: User, accent: 'from-slate-600 to-gray-800', bg: 'from-gray-100 via-slate-100 to-gray-200', text: 'text-slate-700' },
+  { id: 'adolin', name: 'Adolin', icon: User, accent: 'from-amber-400 to-yellow-600', bg: 'from-amber-50 via-yellow-50 to-amber-100', text: 'text-amber-600' },
+  { id: 'szeth', name: 'Szeth', icon: User, accent: 'from-zinc-300 to-slate-400', bg: 'from-zinc-50 via-slate-50 to-zinc-100', text: 'text-zinc-500' },
+  { id: 'lift', name: 'Lift', icon: User, accent: 'from-emerald-400 to-teal-600', bg: 'from-emerald-50 via-green-50 to-teal-100', text: 'text-emerald-600' },
 ];
 
 export default function Page() {
@@ -38,7 +32,7 @@ export default function Page() {
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant' | 'system'; content: string }>>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [chatId, setChatId] = useState('');
-  const [selectedPersona, setSelectedPersona] = useState('friendly');
+  const [selectedPersona, setSelectedPersona] = useState('kaladin');
   const eventSourceRef = useRef<EventSource | null>(null);
   const debugEndRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -54,7 +48,6 @@ export default function Page() {
         console.error('Failed to fetch chat IDs', e);
       }
     };
-
     fetchChatIds();
   }, []);
 
@@ -89,16 +82,13 @@ export default function Page() {
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-
         if (data.type === 'message') {
           const token = data.message;
-
           if (token === '[DONE]') {
             setIsGenerating(false);
             addMessage(`Received: ${JSON.stringify(data, null, 2)}`, 'message');
             return;
           }
-
           setChatMessages(prev => {
             const last = prev[prev.length - 1];
             if (last && last.role === 'assistant') {
@@ -108,7 +98,6 @@ export default function Page() {
             }
           });
         }
-
         addMessage(`Received: ${JSON.stringify(data, null, 2)}`, 'message');
       } catch {
         addMessage(`Raw message: ${event.data}`, 'message');
@@ -167,21 +156,23 @@ export default function Page() {
     return () => eventSourceRef.current?.close();
   }, []);
 
+  const currentPersona = PERSONAS.find(p => p.id === selectedPersona);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex">
+    <div className={`min-h-screen bg-gradient-to-br ${currentPersona?.bg} dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex`}>
       {/* Sidebar */}
       <div className="w-80 border-r bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl flex flex-col">
         {/* Sidebar Header */}
         <div className="p-6 border-b">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${currentPersona?.accent} flex items-center justify-center`}>
               <Sparkles className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Edge AI Chat
+              <h1 className={`text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r ${currentPersona?.accent}`}>
+                Chat with <span className='inline-block first-letter:capitalize'>{selectedPersona}</span>
               </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Cloudflare Workers</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">The Stormlight Archive</p>
             </div>
           </div>
 
@@ -210,21 +201,12 @@ export default function Page() {
                 disabled={!isConnected && !chatId}
                 className={`w-full ${isConnected
                   ? 'bg-red-600 hover:bg-red-700'
-                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                  : `bg-gradient-to-r ${currentPersona?.accent} hover:from-blue-700 hover:to-indigo-700`
                   } ${!isConnected && chatId ? 'animate-bounce' : ''}`}
                 size="sm"
               >
-                {isConnected ? (
-                  <>
-                    <Link2 className="w-4 h-4 mr-2" />
-                    Disconnect
-                  </>
-                ) : (
-                  <>
-                    <Link2 className="w-4 h-4 mr-2" />
-                    Connect
-                  </>
-                )}
+                <Link2 className="w-4 h-4 mr-2" />
+                {isConnected ? 'Disconnect' : 'Connect'}
               </Button>
             </div>
 
@@ -287,8 +269,7 @@ export default function Page() {
               </p>
             </div>
 
-            {/* Persona Selection */}
-            <div className={`flex items-center scale-90 gap-2 ${!isConnected ? 'animate-bounce' : 'animate-none'}`}>
+            <div className={`flex items-center gap-2 scale-90 ${!isConnected ? 'animate-bounce' : 'animate-none'}`}>
               <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Persona:</span>
               {PERSONAS.map((persona) => {
                 const Icon = persona.icon;
@@ -299,14 +280,14 @@ export default function Page() {
                     disabled={isConnected}
                     className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all
                       ${selectedPersona === persona.id
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 scale-110'
+                        ? `border-blue-500 bg-gradient-to-br ${persona.bg} scale-110`
                         : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
                       }
                       ${isConnected ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105'}
                     `}
                     title={persona.name}
                   >
-                    <Icon className={`w-5 h-5 ${persona.color}`} />
+                    <Icon className={`w-5 h-5 ${persona.text}`} />
                     <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300">
                       {persona.name}
                     </span>
@@ -334,8 +315,8 @@ export default function Page() {
                 {chatMessages.length === 0 && (
                   <div className="flex items-center justify-center h-full min-h-[400px]">
                     <div className="text-center space-y-2">
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 flex items-center justify-center mx-auto">
-                        <MessageSquare className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                      <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${currentPersona?.accent} flex items-center justify-center mx-auto`}>
+                        <MessageSquare className="w-8 h-8 text-white dark:text-blue-400" />
                       </div>
                       <p className="text-slate-500 dark:text-slate-400 text-sm">No conversation yet</p>
                       <p className="text-xs text-slate-400">Connect and start chatting!</p>
@@ -386,55 +367,44 @@ export default function Page() {
                 />
                 <Button
                   onClick={sendMessage}
-                  disabled={!isConnected || isGenerating || !chatId}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg px-6"
+                  disabled={!isConnected || !promptText || isGenerating || !chatId}
+                  className="flex-none"
                 >
-                  {isGenerating ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
+                  <Send className="w-4 h-4" />
                 </Button>
               </div>
             </div>
           </Card>
 
           {/* Debug Panel */}
-          <Card className="border-2 shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex flex-col overflow-hidden h-[70vh]">
+          <Card className="border-2 shadow-xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm flex flex-col overflow-hidden h-[70vh]">
             <CardHeader className="border-b flex-shrink-0">
               <div className="flex items-center gap-2">
-                <Terminal className="w-5 h-5 text-emerald-600" />
-                <CardTitle>Debug Console</CardTitle>
+                <Terminal className="w-5 h-5 text-red-600" />
+                <CardTitle>Debug Logs</CardTitle>
               </div>
-              <CardDescription>Real-time event stream and system logs</CardDescription>
+              <CardDescription>Real-time SSE & workflow messages</CardDescription>
             </CardHeader>
 
-            <div className="flex-1 overflow-y-auto bg-slate-950 dark:bg-black p-4 font-mono text-xs">
-              <div className="space-y-1">
-                {debugMessages.length === 0 && (
-                  <div className="text-slate-500 italic">Waiting for events...</div>
-                )}
-                {debugMessages.map((msg, idx) => (
-                  <div key={idx} className="flex gap-2 hover:bg-slate-900/50 px-2 py-1 rounded">
-                    <span className="text-slate-600 shrink-0">[{msg.time}]</span>
-                    <span className={
-                      msg.type === 'error' ? 'text-red-400' :
-                        msg.type === 'message' ? 'text-emerald-400' :
-                          'text-slate-300'
-                    }>
-                      {msg.content}
-                    </span>
+            <ScrollArea className="flex-1 p-4">
+              <div className="space-y-1 font-mono text-xs">
+                {debugMessages.map((msg, i) => (
+                  <div key={i} className={`whitespace-pre-wrap break-words ${msg.type === 'info' ? 'text-slate-700 dark:text-slate-300' : msg.type === 'error' ? 'text-red-500' : 'text-blue-600'}`}>
+                    [{msg.time}] {msg.content}
                   </div>
                 ))}
                 <div ref={debugEndRef} />
               </div>
-            </div>
+            </ScrollArea>
           </Card>
+
+
+          {/* Footer Info */}
+
         </div>
 
-        {/* Footer Info */}
-        <div className="border-t bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm p-4 flex-shrink-0">
-          <div className="text-xs text-slate-500 dark:text-slate-400 grid grid-cols-2 gap-2">
+        <div className="border-t bg-transparent dark:bg-slate-900/60 backdrop-blur-sm p-4 flex-shrink-0">
+          <div className="text-xs w-full text-slate-500 dark:text-slate-400 text-center grid grid-cols-2 gap-2">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-blue-500" />
               <span className="font-semibold">SSE:</span>
@@ -461,3 +431,4 @@ export default function Page() {
     </div>
   );
 }
+
