@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Send, Sparkles, Terminal, MessageSquare, Link2, User } from 'lucide-react';
 import { v6 } from "uuid";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
+import Image from "next/image"
 const WORKER_URL = 'https://chat-room-do-worker.feldspar.workers.dev';
 const WORKFLOW_URL = 'https://llm-workflow.feldspar.workers.dev';
 const LIST_CHATS_URL = "https://chat-list-worker.feldspar.workers.dev"
@@ -21,7 +21,6 @@ const PERSONAS = [
   { id: 'dalinar', name: 'Dalinar', icon: User, accent: 'from-slate-600 to-gray-800', bg: 'from-gray-100 via-slate-100 to-gray-200', text: 'text-slate-700' },
   { id: 'adolin', name: 'Adolin', icon: User, accent: 'from-amber-400 to-yellow-600', bg: 'from-amber-50 via-yellow-50 to-amber-100', text: 'text-amber-600' },
   { id: 'szeth', name: 'Szeth', icon: User, accent: 'from-zinc-300 to-slate-400', bg: 'from-zinc-50 via-slate-50 to-zinc-100', text: 'text-zinc-500' },
-  { id: 'lift', name: 'Lift', icon: User, accent: 'from-emerald-400 to-teal-600', bg: 'from-emerald-50 via-green-50 to-teal-100', text: 'text-emerald-600' },
 ];
 
 export default function Page() {
@@ -32,7 +31,7 @@ export default function Page() {
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant' | 'system'; content: string }>>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [chatId, setChatId] = useState('');
-  const [selectedPersona, setSelectedPersona] = useState('kaladin');
+  const [selectedPersona, setSelectedPersona] = useState('szeth');
   const eventSourceRef = useRef<EventSource | null>(null);
   const debugEndRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -166,7 +165,7 @@ export default function Page() {
         <div className="p-6 border-b">
           <div className="flex items-center gap-3 mb-6">
             <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${currentPersona?.accent} flex items-center justify-center`}>
-              <Sparkles className="w-6 h-6 text-white" />
+              <Image width={337} height={446} alt={currentPersona!.name} className={`w-6 h-8`} src={`/${currentPersona!.name.toLowerCase()}.png`} />
             </div>
             <div>
               <h1 className={`text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r ${currentPersona?.accent}`}>
@@ -194,7 +193,7 @@ export default function Page() {
                 onChange={(e) => setChatId(e.target.value)}
                 placeholder="Enter or create chat name"
                 disabled={isConnected}
-                className="text-sm"
+                className="text-sm not-focus-within:animate-bounce not-focus-within:scale-95 mt-2 mb-4"
               />
               <Button
                 onClick={isConnected ? disconnect : connect}
@@ -214,7 +213,7 @@ export default function Page() {
               <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
                 Previous Chats
               </label>
-              <ScrollArea className="h-48 rounded-lg border bg-slate-50 dark:bg-slate-950/50">
+              <ScrollArea className="h-72 rounded-lg border bg-slate-50 dark:bg-slate-950/50">
                 <div className="p-2 space-y-1">
                   {chatOptions.length === 0 && (
                     <div className="text-xs text-slate-400 text-center py-8">
@@ -272,7 +271,6 @@ export default function Page() {
             <div className={`flex items-center gap-2 scale-90 ${!isConnected ? 'animate-bounce' : 'animate-none'}`}>
               <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Persona:</span>
               {PERSONAS.map((persona) => {
-                const Icon = persona.icon;
                 return (
                   <button
                     key={persona.id}
@@ -287,7 +285,7 @@ export default function Page() {
                     `}
                     title={persona.name}
                   >
-                    <Icon className={`w-5 h-5 ${persona.text}`} />
+                    <Image width={337} height={446} alt={persona.name} className={`w-6 h-8`} src={`/${persona.name.toLowerCase()}.png`} />
                     <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300">
                       {persona.name}
                     </span>
@@ -316,7 +314,7 @@ export default function Page() {
                   <div className="flex items-center justify-center h-full min-h-[400px]">
                     <div className="text-center space-y-2">
                       <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${currentPersona?.accent} flex items-center justify-center mx-auto`}>
-                        <MessageSquare className="w-8 h-8 text-white dark:text-blue-400" />
+                        <Image width={337} height={446} alt={currentPersona!.name} className={`w-8 h-12`} src={`/${currentPersona!.name.toLowerCase()}.png`} />
                       </div>
                       <p className="text-slate-500 dark:text-slate-400 text-sm">No conversation yet</p>
                       <p className="text-xs text-slate-400">Connect and start chatting!</p>
