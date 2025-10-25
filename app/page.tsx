@@ -9,6 +9,7 @@ import { Loader2, Send, Sparkles, Terminal, MessageSquare, Link2, User } from 'l
 import { v6 } from "uuid";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image"
+
 const WORKER_URL = 'https://chat-room-do-worker.feldspar.workers.dev';
 const WORKFLOW_URL = 'https://llm-workflow.feldspar.workers.dev';
 const LIST_CHATS_URL = "https://chat-list-worker.feldspar.workers.dev"
@@ -37,16 +38,17 @@ export default function Page() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [chatOptions, setChatOptions] = useState<string[]>([]);
 
+  const fetchChatIds = async () => {
+    try {
+      const res = await fetch(LIST_CHATS_URL);
+      const data = await res.json();
+      setChatOptions(data.chatIds || []);
+    } catch (e) {
+      console.error('Failed to fetch chat IDs', e);
+    }
+  };
+
   useEffect(() => {
-    const fetchChatIds = async () => {
-      try {
-        const res = await fetch(LIST_CHATS_URL);
-        const data = await res.json();
-        setChatOptions(data.chatIds || []);
-      } catch (e) {
-        console.error('Failed to fetch chat IDs', e);
-      }
-    };
     fetchChatIds();
   }, []);
 
@@ -54,6 +56,9 @@ export default function Page() {
     setDebugMessages(prev => [...prev, { time: new Date().toLocaleTimeString(), content, type }]);
   };
 
+  const retrieveChats = async () => {
+
+  }
   const connect = async () => {
     if (eventSourceRef.current) eventSourceRef.current.close();
 
@@ -62,7 +67,9 @@ export default function Page() {
     try {
       const res = await fetch(`${RETRIEVE_CHAT_URL}${chatId}`);
       const data = await res.json();
-      setChatMessages(Array.isArray(data.chatMessages) ? data.chatMessages : []);
+      if (data.persona)
+        setSelectedPersona(data.persona)
+      setChatMessages(Array.isArray(data.chat) ? data.chat : []);
       addMessage(`Chat state loaded from KV (${chatId})`, 'info');
     } catch (err) {
       console.error('Failed to fetch chat from KV', err);
@@ -116,6 +123,8 @@ export default function Page() {
       eventSourceRef.current = null;
       setIsConnected(false);
       addMessage('Disconnected', 'info');
+      //Maybe a new chat got added? so refetch, but since it's edge, wait a sec
+      setTimeout(() => { fetchChatIds() }, 1000);
     }
   };
 
@@ -130,6 +139,7 @@ export default function Page() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: promptText, clientId, chatId, persona: selectedPersona }),
       });
+
       const result = await response.json();
       addMessage(`Workflow started: ${result.workflowId}`, 'info');
       setPromptText('');
@@ -158,17 +168,17 @@ export default function Page() {
   const currentPersona = PERSONAS.find(p => p.id === selectedPersona);
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br ${currentPersona?.bg} dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex`}>
+    <div className={`min-h-screen bg-linear-to-br ${currentPersona?.bg} dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex`}>
       {/* Sidebar */}
       <div className="w-80 border-r bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl flex flex-col">
         {/* Sidebar Header */}
         <div className="p-6 border-b">
           <div className="flex items-center gap-3 mb-6">
-            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${currentPersona?.accent} flex items-center justify-center`}>
+            <div className={`w-10 h-10 rounded-xl bg-linear-to-br ${currentPersona?.accent} flex items-center justify-center`}>
               <Image width={337} height={446} alt={currentPersona!.name} className={`w-6 h-8`} src={`/${currentPersona!.name.toLowerCase()}.png`} />
             </div>
             <div>
-              <h1 className={`text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r ${currentPersona?.accent}`}>
+              <h1 className={`text-lg font-bold bg-clip-text text-transparent bg-linear-to-r ${currentPersona?.accent}`}>
                 Chat with <span className='inline-block first-letter:capitalize'>{selectedPersona}</span>
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400">The Stormlight Archive</p>
@@ -200,7 +210,7 @@ export default function Page() {
                 disabled={!isConnected && !chatId}
                 className={`w-full ${isConnected
                   ? 'bg-red-600 hover:bg-red-700'
-                  : `bg-gradient-to-r ${currentPersona?.accent} hover:from-blue-700 hover:to-indigo-700`
+                  : `bg-linear-to-r ${currentPersona?.accent} hover:from-blue-700 hover:to-indigo-700`
                   } ${!isConnected && chatId ? 'animate-bounce' : ''}`}
                 size="sm"
               >
@@ -257,7 +267,7 @@ export default function Page() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="border-b bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl p-4 flex-shrink-0">
+        <div className="border-b bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl p-4 shrink-0">
           <div className="flex items-center justify-start gap-4">
             <div>
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -278,7 +288,7 @@ export default function Page() {
                     disabled={isConnected}
                     className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all
                       ${selectedPersona === persona.id
-                        ? `border-blue-500 bg-gradient-to-br ${persona.bg} scale-110`
+                        ? `border-blue-500 bg-linear-to-br ${persona.bg} scale-110`
                         : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
                       }
                       ${isConnected ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105'}
@@ -300,7 +310,7 @@ export default function Page() {
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 overflow-hidden">
           {/* Chat Panel */}
           <Card className="border-2 shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex flex-col overflow-hidden h-[70vh]">
-            <CardHeader className="border-b flex-shrink-0">
+            <CardHeader className="border-b shrink-0">
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-indigo-600" />
                 <CardTitle>Conversation</CardTitle>
@@ -313,7 +323,7 @@ export default function Page() {
                 {chatMessages.length === 0 && (
                   <div className="flex items-center justify-center h-full min-h-[400px]">
                     <div className="text-center space-y-2">
-                      <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${currentPersona?.accent} flex items-center justify-center mx-auto`}>
+                      <div className={`w-16 h-16 rounded-full bg-linear-to-br ${currentPersona?.accent} flex items-center justify-center mx-auto`}>
                         <Image width={337} height={446} alt={currentPersona!.name} className={`w-8 h-12`} src={`/${currentPersona!.name.toLowerCase()}.png`} />
                       </div>
                       <p className="text-slate-500 dark:text-slate-400 text-sm">No conversation yet</p>
@@ -327,11 +337,11 @@ export default function Page() {
                     <div
                       className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm shadow-md
                         ${msg.role === 'user'
-                          ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-sm'
+                          ? 'bg-linear-to-br from-blue-600 to-indigo-600 text-white rounded-br-sm'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-bl-sm border border-slate-200 dark:border-slate-700'
                         } ${msg.role === 'system' ? 'hidden' : ''}`}
                     >
-                      <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                      <div className="whitespace-pre-wrap wrap-break-word">{msg.content}</div>
                     </div>
                   </div>
                 ))}
@@ -348,7 +358,7 @@ export default function Page() {
               </div>
             </div>
 
-            <div className="border-t p-4 bg-slate-50/50 dark:bg-slate-900/50 flex-shrink-0">
+            <div className="border-t p-4 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
               <div className="flex gap-2">
                 <Input
                   value={promptText}
@@ -376,7 +386,7 @@ export default function Page() {
 
           {/* Debug Panel */}
           <Card className="border-2 shadow-xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm flex flex-col overflow-hidden h-[70vh]">
-            <CardHeader className="border-b flex-shrink-0">
+            <CardHeader className="border-b shrink-0">
               <div className="flex items-center gap-2">
                 <Terminal className="w-5 h-5 text-red-600" />
                 <CardTitle>Debug Logs</CardTitle>
@@ -387,7 +397,7 @@ export default function Page() {
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-1 font-mono text-xs">
                 {debugMessages.map((msg, i) => (
-                  <div key={i} className={`whitespace-pre-wrap break-words ${msg.type === 'info' ? 'text-slate-700 dark:text-slate-300' : msg.type === 'error' ? 'text-red-500' : 'text-blue-600'}`}>
+                  <div key={i} className={`whitespace-pre-wrap wrap-break-word ${msg.type === 'info' ? 'text-slate-700 dark:text-slate-300' : msg.type === 'error' ? 'text-red-500' : 'text-blue-600'}`}>
                     [{msg.time}] {msg.content}
                   </div>
                 ))}
@@ -401,7 +411,7 @@ export default function Page() {
 
         </div>
 
-        <div className="border-t bg-transparent dark:bg-slate-900/60 backdrop-blur-sm p-4 flex-shrink-0">
+        <div className="border-t bg-transparent dark:bg-slate-900/60 backdrop-blur-sm p-4 shrink-0">
           <div className="text-xs w-full text-slate-500 dark:text-slate-400 text-center grid grid-cols-2 gap-2">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-blue-500" />

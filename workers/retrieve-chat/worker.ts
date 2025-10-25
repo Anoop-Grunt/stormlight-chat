@@ -36,9 +36,9 @@ export default {
 
     try {
       const raw = await env.CHAT_KV.get(chatId);
-      const chatMessages = raw ? JSON.parse(raw) : [];
+      const chatMessages: ChatType = raw ? JSON.parse(raw) : {};
 
-      return new Response(JSON.stringify({ chatMessages }), {
+      return new Response(JSON.stringify(chatMessages), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     } catch (err) {
