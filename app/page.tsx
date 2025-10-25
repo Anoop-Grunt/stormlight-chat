@@ -31,7 +31,7 @@ export default function Page() {
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant' | 'system'; content: string }>>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [chatId, setChatId] = useState('');
-  const [selectedPersona, setSelectedPersona] = useState('szeth');
+  const [selectedPersona, setSelectedPersona] = useState('dalinar');
   const eventSourceRef = useRef<EventSource | null>(null);
   const debugEndRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -193,7 +193,7 @@ export default function Page() {
                 onChange={(e) => setChatId(e.target.value)}
                 placeholder="Enter or create chat name"
                 disabled={isConnected}
-                className="text-sm not-focus-within:animate-bounce not-focus-within:scale-95 mt-2 mb-4"
+                className={`text-sm ${!chatId && 'not-focus-within:animate-bounce'} mt-2 mb-4`}
               />
               <Button
                 onClick={isConnected ? disconnect : connect}
