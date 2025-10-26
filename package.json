@@ -11,6 +11,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@tailwindcss/postcss": "^4.1.15",
     "clsx": "^2.1.1",
+    "jotai": "^2.15.0",
     "lucide-react": "^0.546.0",
     "next": "latest",
     "postcss": "^8.5.6",

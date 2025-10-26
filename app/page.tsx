@@ -9,6 +9,17 @@ import { Loader2, Send, Sparkles, Terminal, MessageSquare, Link2, User } from 'l
 import { v6 } from "uuid";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image"
+import { useAtom } from 'jotai'
+import { sseDoId, activePersona, isChatGenerating, chatIdAtom } from "@/atoms/common"
+import { useSetAtom } from "jotai";
+import {
+  addUserMessageAtom,
+  addAssistantChunkAtom,
+  setChatMessagesAtom,
+} from "@/atoms/chatLog";
+import { addDebugMessageAtom } from "@/atoms/debugLog";
+import { ChatCard } from "@/components/stormlightchat/ChatCard"
+import { DebugCard } from '@/components/stormlightchat/DebugCard'
 
 const WORKER_URL = 'https://chat-room-do-worker.feldspar.workers.dev';
 const WORKFLOW_URL = 'https://llm-workflow.feldspar.workers.dev';
@@ -25,14 +36,16 @@ const PERSONAS = [
 ];
 
 export default function Page() {
-  const [clientId, setClientId] = useState(`${v6()}`);
+  const [clientId, setClientId] = useAtom(sseDoId)
   const [isConnected, setIsConnected] = useState(false);
-  const [debugMessages, setDebugMessages] = useState<Array<{ time: string; content: string; type: 'info' | 'message' | 'error' }>>([]);
   const [promptText, setPromptText] = useState('');
-  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant' | 'system'; content: string }>>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [chatId, setChatId] = useState('');
-  const [selectedPersona, setSelectedPersona] = useState('dalinar');
+  const addUserMessage = useSetAtom(addUserMessageAtom);
+  const addAssistantChunk = useSetAtom(addAssistantChunkAtom);
+  const setChatMessages = useSetAtom(setChatMessagesAtom);
+  const addDebugMessage = useSetAtom(addDebugMessageAtom);
+  const setIsGenerating = useSetAtom(isChatGenerating);
+  const [chatId, setChatId] = useAtom(chatIdAtom);
+  const [selectedPersona, setSelectedPersona] = useAtom(activePersona);
   const eventSourceRef = useRef<EventSource | null>(null);
   const debugEndRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -52,9 +65,6 @@ export default function Page() {
     fetchChatIds();
   }, []);
 
-  const addMessage = (content: string, type: 'info' | 'message' | 'error' = 'info') => {
-    setDebugMessages(prev => [...prev, { time: new Date().toLocaleTimeString(), content, type }]);
-  };
 
   const retrieveChats = async () => {
 
@@ -62,19 +72,21 @@ export default function Page() {
   const connect = async () => {
     if (eventSourceRef.current) eventSourceRef.current.close();
 
-    addMessage(`Connecting to ${WORKER_URL}/register/${clientId}...`, 'info');
+    addDebugMessage({ content: `Connecting to ${WORKER_URL}/register/${clientId}...` });
 
     try {
       const res = await fetch(`${RETRIEVE_CHAT_URL}${chatId}`);
       const data = await res.json();
-      if (data.persona)
-        setSelectedPersona(data.persona)
+
+      if (data.persona) setSelectedPersona(data.persona);
+
+      // replace chat messages with retrieved chat from KV
       setChatMessages(Array.isArray(data.chat) ? data.chat : []);
-      addMessage(`Chat state loaded from KV (${chatId})`, 'info');
+      addDebugMessage({ content: `Chat state loaded from KV (${chatId})` });
     } catch (err) {
       console.error('Failed to fetch chat from KV', err);
-      setChatMessages([]);
-      addMessage(`Failed to load chat from KV, starting fresh`, 'error');
+      setChatMessages([]); // start fresh
+      addDebugMessage({ content: `Failed to load chat from KV, starting fresh`, type: 'error' });
     }
 
     const eventSource = new EventSource(`${WORKER_URL}/register/${clientId}`);
@@ -82,47 +94,44 @@ export default function Page() {
 
     eventSource.onopen = () => {
       setIsConnected(true);
-      addMessage('✓ SSE connection established', 'info');
+      addDebugMessage({ content: '✓ SSE connection established' });
     };
 
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+
         if (data.type === 'message') {
           const token = data.message;
+
           if (token === '[DONE]') {
             setIsGenerating(false);
-            addMessage(`Received: ${JSON.stringify(data, null, 2)}`, 'message');
+            addDebugMessage({ content: `Received DONE`, type: 'message' });
             return;
           }
-          setChatMessages(prev => {
-            const last = prev[prev.length - 1];
-            if (last && last.role === 'assistant') {
-              return [...prev.slice(0, -1), { ...last, content: last.content + token }];
-            } else {
-              return [...prev, { role: 'assistant', content: token }];
-            }
-          });
+
+          // append assistant chunk
+          addAssistantChunk(token);
         }
-        addMessage(`Received: ${JSON.stringify(data, null, 2)}`, 'message');
+
+        addDebugMessage({ content: `Received: ${JSON.stringify(data, null, 2)}`, type: 'message' });
       } catch {
-        addMessage(`Raw message: ${event.data}`, 'message');
+        addDebugMessage({ content: `Raw message: ${event.data}`, type: 'message' });
       }
     };
 
     eventSource.onerror = () => {
       setIsConnected(false);
-      addMessage('✗ Connection error or closed', 'error');
+      addDebugMessage({ content: '✗ Connection error or closed', type: 'error' });
       eventSource.close();
     };
   };
-
   const disconnect = () => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
       setIsConnected(false);
-      addMessage('Disconnected', 'info');
+      addDebugMessage({ content: 'Disconnected from chat', type: 'info' });
       setChatId('')
       setClientId(v6().toString())
       setIsGenerating((false))
@@ -131,44 +140,11 @@ export default function Page() {
     }
   };
 
-  const sendMessage = async () => {
-    try {
-      setChatMessages(prev => [...prev, { role: 'user', content: promptText }]);
-      setIsGenerating(true);
-      addMessage(`Starting workflow with prompt...`, 'info');
-
-      const response = await fetch(WORKFLOW_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: promptText, clientId, chatId, persona: selectedPersona }),
-      });
-
-      const result = await response.json();
-      addMessage(`Workflow started: ${result.workflowId}`, 'info');
-      setPromptText('');
-    } catch (error) {
-      addMessage(`Workflow failed: ${error}`, 'error');
-      setIsGenerating(false);
-    }
-  };
-
-  useEffect(() => {
-    if (chatMessages.length > 0) {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [chatMessages, isGenerating]);
-
-  useEffect(() => {
-    if (debugMessages.length > 0) {
-      debugEndRef.current?.scrollIntoView({ behavior: 'instant' });
-    }
-  }, [debugMessages]);
-
   useEffect(() => {
     return () => eventSourceRef.current?.close();
   }, []);
 
-  const currentPersona = PERSONAS.find(p => p.id === selectedPersona);
+  const currentPersona = PERSONAS.find(p => p.id === selectedPersona)!;
 
   return (
     <div className={`min-h-screen bg-linear-to-br ${currentPersona?.bg} dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex`}>
@@ -210,7 +186,7 @@ export default function Page() {
               />
               <Button
                 onClick={isConnected ? disconnect : connect}
-                disabled={!isConnected && !chatId}
+                disabled={!isConnected && (!chatId || !clientId)}
                 className={`w-full ${isConnected
                   ? 'bg-red-600 hover:bg-red-700'
                   : `bg-linear-to-r ${currentPersona?.accent} hover:from-blue-700 hover:to-indigo-700`
@@ -259,7 +235,7 @@ export default function Page() {
               <Input
                 value={clientId}
                 onChange={(e) => setClientId(e.target.value)}
-                disabled={isConnected}
+                disabled={true}
                 className="font-mono text-xs"
               />
             </div>
@@ -311,104 +287,9 @@ export default function Page() {
 
         {/* Chat and Debug Grid */}
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 overflow-hidden">
-          {/* Chat Panel */}
-          <Card className="border-2 shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex flex-col overflow-hidden h-[70vh]">
-            <CardHeader className="border-b shrink-0">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-indigo-600" />
-                <CardTitle>Conversation</CardTitle>
-              </div>
-              <CardDescription>Chat with the AI assistant in real-time</CardDescription>
-            </CardHeader>
 
-            <div className="flex-1 overflow-y-auto p-4">
-              <div className="space-y-3">
-                {chatMessages.length === 0 && (
-                  <div className="flex items-center justify-center h-full min-h-[400px]">
-                    <div className="text-center space-y-2">
-                      <div className={`w-16 h-16 rounded-full bg-linear-to-br ${currentPersona?.accent} flex items-center justify-center mx-auto`}>
-                        <Image width={337} height={446} alt={currentPersona!.name} className={`w-8 h-12`} src={`/${currentPersona!.name.toLowerCase()}.png`} />
-                      </div>
-                      <p className="text-slate-500 dark:text-slate-400 text-sm">No conversation yet</p>
-                      <p className="text-xs text-slate-400">Connect and start chatting!</p>
-                    </div>
-                  </div>
-                )}
-
-                {chatMessages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                    <div
-                      className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm shadow-md
-                        ${msg.role === 'user'
-                          ? 'bg-linear-to-br from-blue-600 to-indigo-600 text-white rounded-br-sm'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-bl-sm border border-slate-200 dark:border-slate-700'
-                        } ${msg.role === 'system' ? 'hidden' : ''}`}
-                    >
-                      <div className="whitespace-pre-wrap wrap-break-word">{msg.content}</div>
-                    </div>
-                  </div>
-                ))}
-
-                {isGenerating && (
-                  <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="bg-slate-100 dark:bg-slate-800 px-4 py-3 rounded-2xl rounded-bl-sm text-sm flex items-center gap-2 shadow-md border border-slate-200 dark:border-slate-700">
-                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                      <span className="text-slate-600 dark:text-slate-400">Thinking...</span>
-                    </div>
-                  </div>
-                )}
-                <div ref={chatEndRef} />
-              </div>
-            </div>
-
-            <div className="border-t p-4 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
-              <div className="flex gap-2">
-                <Input
-                  value={promptText}
-                  onChange={(e) => setPromptText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey && isConnected && !isGenerating && chatId) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  disabled={!isConnected}
-                  placeholder={isConnected ? "Type your message..." : "Connect to start chatting"}
-                  className="flex-1 shadow-sm"
-                />
-                <Button
-                  onClick={sendMessage}
-                  disabled={!isConnected || !promptText || isGenerating || !chatId}
-                  className="flex-none"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </Card>
-
-          {/* Debug Panel */}
-          <Card className="border-2 shadow-xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm flex flex-col overflow-hidden h-[70vh]">
-            <CardHeader className="border-b shrink-0">
-              <div className="flex items-center gap-2">
-                <Terminal className="w-5 h-5 text-red-600" />
-                <CardTitle>Debug Logs</CardTitle>
-              </div>
-              <CardDescription>Real-time SSE & workflow messages</CardDescription>
-            </CardHeader>
-
-            <div className="flex-1 p-4 overflow-y-scroll">
-              <div className="space-y-1 font-mono text-xs">
-                {debugMessages.map((msg, i) => (
-                  <div key={i} className={`whitespace-pre-wrap wrap-break-word ${msg.type === 'info' ? 'text-slate-700 dark:text-slate-300' : msg.type === 'error' ? 'text-red-500' : 'text-blue-600'}`}>
-                    [{msg.time}] {msg.content}
-                  </div>
-                ))}
-                <div ref={debugEndRef} />
-              </div>
-            </div>
-          </Card>
-
+          <ChatCard currentPersona={currentPersona} />
+          <DebugCard />
 
           {/* Footer Info */}
 
