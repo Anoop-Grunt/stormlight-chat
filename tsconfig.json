@@ -41,13 +41,5 @@
   "exclude": [
     "workers",
     "node_modules"
-  ],
-  "references": [
-    {
-      "path": "workers"
-    },
-    {
-      "path": "."
-    }
   ]
 }

@@ -41,7 +41,7 @@ export const ChatCard: React.FC<ChatCardProps> = ({ currentPersona }) => {
     setIsGenerating(true);
     setPromptText('')
     try {
-      const res = await fetch('https://llm-workflow.feldspar.workers.dev', {
+      const res = await fetch('https://llm-workflow.anoopkv4952.workers.dev', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: promptText, clientId, chatId, persona: selectedPersona }),

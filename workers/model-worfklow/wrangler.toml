@@ -18,4 +18,4 @@ script_name = "chat-room-do-worker"
 
 [[kv_namespaces]]
 binding = "CHAT_KV"
-id = "626c69cac022481db0a6c01737af6bf5"
+id = "b2316dcfe9474b97ae931c64d173f958"

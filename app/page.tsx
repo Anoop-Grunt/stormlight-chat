@@ -21,10 +21,10 @@ import { addDebugMessageAtom } from "@/atoms/debugLog";
 import { ChatCard } from "@/components/stormlightchat/ChatCard"
 import { DebugCard } from '@/components/stormlightchat/DebugCard'
 
-const WORKER_URL = 'https://chat-room-do-worker.feldspar.workers.dev';
-const WORKFLOW_URL = 'https://llm-workflow.feldspar.workers.dev';
-const LIST_CHATS_URL = "https://chat-list-worker.feldspar.workers.dev"
-const RETRIEVE_CHAT_URL = `https://chat-retrieve-worker.feldspar.workers.dev?chatId=`
+const WORKER_URL = 'https://chat-room-do-worker.anoopkv4952.workers.dev';
+const WORKFLOW_URL = 'https://llm-workflow.anoopkv4952.workers.dev';
+const LIST_CHATS_URL = "https://chat-list-worker.anoopkv4952.workers.dev"
+const RETRIEVE_CHAT_URL = `https://chat-retrieve-worker.anoopkv4952.workers.dev?chatId=`
 
 // Stormlight Archive Characters as Personas
 const PERSONAS = [
