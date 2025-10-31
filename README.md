@@ -1,8 +1,19 @@
 # 🌩️ Stormlight Chat
 
-An intelligent, persona-driven chat application built entirely on the **Cloudflare Edge** — combining real-time conversation, LLM-powered responses, and rich character-based interactions inspired by *The Stormlight Archive*.
+An intelligent, persona-driven chat application built entirely on the **Cloudflare Edge**, combining real-time conversation, LLM-powered responses, and rich character-based interactions inspired by *The Stormlight Archive*.
 
 ---
+
+## 🌐 Live Demo
+
+Check out the live Stormlight Chat application deployed on **Cloudflare Pages**:
+
+[https://stormlight-chat.pages.dev/](https://stormlight-chat.pages.dev/)
+
+![Stormlight Chat Screenshot](./public/screenshot.png)
+
+> The frontend is fully static, fast, and globally distributed, while the backend leverages Cloudflare Workers, Durable Objects, Workflows, and KV for real-time AI chat functionality.
+
 
 ## ⚙️ Architecture Overview
 
