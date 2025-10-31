@@ -11,8 +11,8 @@ Stormlight Chat runs fully serverlessly on the Cloudflare developer platform, of
 ### 🧩 Components
 
 | Layer | Technology | Description |
-|-------|-------------|--------------|
-| **Frontend** | [Next.js](https://nextjs.org) + [Jotai](https://jotai.org) | Interactive UI with reactive state for messages, personas, and session control. |
+|-------|------------|-------------|
+| **Frontend** | [Next.js](https://nextjs.org) + [Jotai](https://jotai.org) | Interactive UI with reactive state for messages, personas, and session control. **Deployed as a static site on [Cloudflare Pages](https://pages.cloudflare.com/) for fast global delivery.** |
 | **API Layer** | [Cloudflare Workers](https://developers.cloudflare.com/workers/) | REST endpoints, persona management, and LLM invocation logic. |
 | **Streaming Engine** | [Durable Objects](https://developers.cloudflare.com/durable-objects/) | Maintains live HTTP/SSE streams for real-time chat updates. |
 | **Background Jobs** | [Cloudflare Workflows](https://developers.cloudflare.com/workers/configuration/workflows/) | Executes LLM calls, token streaming, and state updates asynchronously. |
