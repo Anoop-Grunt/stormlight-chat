@@ -1,27 +1,159 @@
-# Next.js Static Export
+# 🌩️ Stormlight Chat
 
-Next.js enables starting as a static site or Single-Page Application (SPA), then later optionally upgrading to use features that require a server.
+An intelligent, persona-driven chat application built entirely on the **Cloudflare Edge** — combining real-time conversation, LLM-powered responses, and rich character-based interactions inspired by *The Stormlight Archive*.
 
-When running `next build`, Next.js generates an HTML file per route. By breaking a strict SPA into individual HTML files, Next.js can avoid loading unnecessary JavaScript code on the client-side, reducing the bundle size and enabling faster page loads.
+---
 
-Learn more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports
+## ⚙️ Architecture Overview
 
-## Deploy your own
+Stormlight Chat runs fully serverlessly on the Cloudflare developer platform, offering **edge-native AI chat** with minimal latency.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-static-export)
+### 🧩 Components
 
-## How to use
+| Layer | Technology | Description |
+|-------|-------------|--------------|
+| **Frontend** | [Next.js](https://nextjs.org) + [Jotai](https://jotai.org) | Interactive UI with reactive state for messages, personas, and session control. |
+| **API Layer** | [Cloudflare Workers](https://developers.cloudflare.com/workers/) | REST endpoints, persona management, and LLM invocation logic. |
+| **Streaming Engine** | [Durable Objects](https://developers.cloudflare.com/durable-objects/) | Maintains live HTTP/SSE streams for real-time chat updates. |
+| **Background Jobs** | [Cloudflare Workflows](https://developers.cloudflare.com/workers/configuration/workflows/) | Executes LLM calls, token streaming, and state updates asynchronously. |
+| **State Store** | [Cloudflare KV](https://developers.cloudflare.com/kv/) | Persists conversation history, persona info, and session metadata. |
+| **AI Runtime** | [Cloudflare AI](https://developers.cloudflare.com/ai/) | Provides model inference for LLM-powered responses. |
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+---
 
-```bash
-npx create-next-app --example with-static-export with-static-export-app
+## 🧠 Features
+
+-  **Edge-native LLM chat** — ultra-low latency, globally distributed execution.  
+-  **Real-time streaming** — token-level streaming from Durable Objects over SSE.  
+- **Stormlight persona system** — chat with characters like Kaladin, Shallan, or Dalinar.  
+-  **Persistent conversations** — chat state stored in Cloudflare KV.  
+-  **Composable front-end** — powered by Jotai atoms and reusable UI primitives.  
+- **Workflow orchestration** — background AI processes with resumable logic.  
+
+---
+
+## 🧱 Project Structure
+
+# 🌩️ Stormlight Chat
+
+An intelligent, persona-driven chat application built entirely on the **Cloudflare Edge** — combining real-time conversation, LLM-powered responses, and rich character-based interactions inspired by *The Stormlight Archive*.
+
+---
+
+## ⚙️ Architecture Overview
+
+Stormlight Chat runs fully serverlessly on the Cloudflare developer platform, offering **edge-native AI chat** with minimal latency.
+
+### 🧩 Components
+
+| Layer | Technology | Description |
+|-------|------------|-------------|
+| **Frontend** | [Next.js](https://nextjs.org) + [Jotai](https://jotai.org) | Interactive UI with reactive state for messages, personas, and session control. **Deployed as a static site on Cloudflare Pages** for fast global delivery. |
+| **API Layer** | [Cloudflare Workers](https://developers.cloudflare.com/workers/) | REST endpoints, persona management, and LLM invocation logic. |
+| **Streaming Engine** | [Durable Objects](https://developers.cloudflare.com/durable-objects/) | Maintains live HTTP/SSE streams for real-time chat updates. |
+| **Background Jobs** | [Cloudflare Workflows](https://developers.cloudflare.com/workers/configuration/workflows/) | Executes LLM calls, token streaming, and state updates asynchronously. |
+| **State Store** | [Cloudflare KV](https://developers.cloudflare.com/kv/) | Persists conversation history, persona info, and session metadata. |
+| **AI Runtime** | [Cloudflare AI](https://developers.cloudflare.com/ai/) | Provides model inference for LLM-powered responses. |
+
+--- 
+
+## 🧠 LLM & Persona Integration
+
+Stormlight Chat uses **LLaMA 3.1 8B Instruct** via Cloudflare AI to power its assistant responses. Each chat session is personalized using the selected **Stormlight Archive persona**, ensuring the conversation stays in-character.
+
+### How it works
+
+1. **Persona Context:**  
+   Each chat session stores a system message that defines the persona, e.g.:
+
+   > "You are an assistant based on Kaladin from the Stormlight Archive. Always make references to Kaladin’s story in the books and never say something Kaladin wouldn’t say."
+
+2. **Appending User Messages:**  
+   When a user sends a message, it is immediately added to the KV-stored chat history.
+
+3. **Streaming AI Response:**  
+   - The LLaMA model is called with the full conversation history (system + user messages).  
+   - Responses are **streamed token-by-token** through a Durable Object to the client in real time.
+
+4. **State Persistence:**  
+   - Completed assistant responses are appended to the chat history in KV.  
+   - This enables the workflow to maintain context across multiple messages and sessions.
+
+### Benefits
+
+- Maintains **in-character responses** for immersive roleplay.  
+- Supports **long-running conversations** without losing context.  
+- Provides **low-latency streaming** for smooth, real-time chat experiences.
+
+
+---
+
+## 🧠 Features
+
+- ⚡ **Edge-native LLM chat** — ultra-low latency, globally distributed execution.  
+- 🧵 **Real-time streaming** — token-level streaming from Durable Objects over SSE.  
+- 🧍‍♂️ **Stormlight persona system** — chat with characters like Kaladin, Shallan, or Dalinar.  
+- 💾 **Persistent conversations** — chat state stored in Cloudflare KV.  
+- 🧩 **Composable front-end** — powered by Jotai atoms and reusable UI primitives.  
+- 🔄 **Workflow orchestration** — background AI processes with resumable logic.  
+
+---
+
+## 🧱 Project Structure
 ```
-
-```bash
-yarn create next-app --example with-static-export with-static-export-app
-```
-
-```bash
-pnpm create next-app --example with-static-export with-static-export-app
+stormlight-chat/
+├── app/
+│   ├── globals.scss
+│   ├── layout.tsx
+│   ├── page.tsx
+│   └── tailwind.css
+│
+├── atoms/                           #jotai atoms
+│   ├── chatLog.ts
+│   ├── common.ts
+│   └── debugLog.ts
+│
+├── components/
+│   ├── stormlightchat/
+│   │   ├── ChatCard.tsx
+│   │   └── DebugCard.tsx
+│   └── ui/(shadcn components)
+│
+├── lib/
+│   └── utils.ts
+│
+├── public/
+│   └── (static assets)
+│
+├── workers/
+│   ├── audio-websocket/             # Worker handling bidirectional audio streaming
+│   │   ├── worker.ts
+│   │   └── wrangler.toml
+│   │
+│   ├── fetch-chats/                 # Worker for retrieving all chats for a user/session
+│   │   ├── worker.ts
+│   │   └── wrangler.toml
+│   │
+│   ├── model-worfklow/              # Cloudflare Workflow for orchestrating LLM calls + KV updates
+│   │   ├── worker.ts
+│   │   └── wrangler.toml
+│   │
+│   ├── retrieve-chat/               # Worker for fetching a single chat’s history/state
+│   │   ├── worker.ts
+│   │   └── wrangler.toml
+│   │
+│   ├── sse-do/                      # Durable Object managing SSE streaming sessions
+│   │   ├── worker.ts
+│   │   └── wrangler.toml
+│   │
+│   ├── chat.d.ts                    # Shared type definitions
+│   └── tsconfig.json                # Worker build configuration
+│
+├── commands.sh # wrangler deploy commands
+├── components.json
+├── next.config.js
+├── package.json
+├── pnpm-lock.yaml
+├── postcss.config.mjs
+├── tsconfig.json
 ```
