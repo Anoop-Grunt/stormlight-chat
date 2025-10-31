@@ -119,7 +119,7 @@ stormlight-chat/
 │   ├── page.tsx
 │   └── tailwind.css
 │
-├── atoms/                           #jotai atoms
+├── atoms/                           #Jotai atoms
 │   ├── chatLog.ts
 │   ├── common.ts
 │   └── debugLog.ts
