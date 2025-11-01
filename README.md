@@ -31,7 +31,7 @@ Check out the live Stormlight Chat application deployed on **Cloudflare Pages**:
 > The frontend is fully static, fast, and globally distributed, while the backend leverages Cloudflare Workers, Durable Objects, Workflows, and KV for real-time AI chat functionality.
 
 Workers:
-- [LLM Workflow](https://llm-workflow.anoopkv4952.workers.dev) — Endpoint for sending messages to the LLM workflow
+- [LLM Workflow](https://llm-workflow.anoopkv4952.workers.dev) — Endpoint for sending messages to the LLM workflow. Uses `@cf/meta/llama-3.1-8b-instruct-fp8`.
 - [Chat Durable Object](https://chat-room-do-worker.anoopkv4952.workers.dev) — Handles real-time streaming of messages via SSE
 - [Retrieve Chat](https://chat-retrieve-worker.anoopkv4952.workers.dev) — Fetch stored messages for a given chat session
 - [List Chats](https://chat-list-worker.anoopkv4952.workers.dev) — List all chat sessions available for a user
@@ -88,7 +88,7 @@ sequenceDiagram
 | **Streaming Engine** | [Durable Objects](https://developers.cloudflare.com/durable-objects/) | Maintains live HTTP/SSE streams for real-time chat updates. |
 | **Background Jobs** | [Cloudflare Workflows](https://developers.cloudflare.com/workers/configuration/workflows/) | Executes LLM calls, token streaming, and state updates asynchronously. |
 | **State Store** | [Cloudflare KV](https://developers.cloudflare.com/kv/) | Persists conversation history, persona info, and session metadata. |
-| **AI Runtime** | [Cloudflare AI](https://developers.cloudflare.com/ai/) | Provides model inference for LLM-powered responses. |
+| **AI Runtime** | [Cloudflare AI](https://developers.cloudflare.com/ai/) | Provides model inference for LLM-powered responses. Currently using `@cf/meta/llama-3.1-8b-instruct-fp8` because the latency seems lower |
 
 ---
 
