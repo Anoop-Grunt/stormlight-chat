@@ -20,7 +20,7 @@ Check out the live Stormlight Chat application deployed on **Cloudflare Pages**:
    Choose from *Kaladin*, *Shallan*, *Dalinar*, *Szeth*, *Adolin* - each with their own personalties.
 
 3. **Create a new chat:**  
-   Enter a name for the chat and cloock on the *connect* button.
+   Enter a name for the chat and click on the *connect* button.
 
 4. **Chat away:**    
     Send messages to the persona, and watch them respond in-character.
