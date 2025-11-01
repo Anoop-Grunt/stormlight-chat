@@ -19,6 +19,44 @@ Check out the live Stormlight Chat application deployed on **Cloudflare Pages**:
 
 Stormlight Chat runs fully serverlessly on the Cloudflare developer platform, offering **edge-native AI chat** with minimal latency.
 
+```mermaid
+sequenceDiagram
+    participant U as User (Browser)
+    participant UI as Next.js UI / Cloudflare Pages
+    participant CW as chat-room-do-worker
+    participant WF as llm-workflow
+    participant LC as chat-list-worker
+    participant RC as chat-retrieve-worker
+    participant KV as Chat KV Store
+    participant AI as Cloudflare AI / LLaMA 3.1
+
+    Note over UI,WF: Chat message flow (persona-based)
+
+    U->>UI: Type message & select persona
+    UI->>WF: POST /sendMessage {text, clientId, chatId, persona}
+    WF->>KV: Retrieve or initialize chat context
+    WF->>AI: Stream persona-aware LLaMA 3.1 tokens
+    AI-->>WF: Stream incremental tokens
+    WF->>CW: POST /send { message: token }
+    CW-->>U: Stream token via SSE
+    loop Until [DONE]
+        AI-->>WF: Continue streaming tokens
+        WF->>CW: Forward token to client
+    end
+    WF->>KV: Update chat history with assistant response
+    WF->>CW: Send [DONE] signal
+    CW-->>U: Complete SSE stream
+
+    Note over UI,LC: Chat history listing
+    UI->>LC: GET /listChats
+    LC-->>UI: Return available chats
+
+    Note over UI,RC: Chat retrieval
+    UI->>RC: GET /retrieveChat?chatId={id}
+    RC-->>UI: Return stored chat messages
+
+```
+
 ### 🧩 Components
 
 | Layer | Technology | Description |
