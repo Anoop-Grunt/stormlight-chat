@@ -14,6 +14,12 @@ Check out the live Stormlight Chat application deployed on **Cloudflare Pages**:
 
 > The frontend is fully static, fast, and globally distributed, while the backend leverages Cloudflare Workers, Durable Objects, Workflows, and KV for real-time AI chat functionality.
 
+Workers:
+- [LLM Workflow](https://llm-workflow.anoopkv4952.workers.dev) — Endpoint for sending messages to the LLM workflow
+- [Chat Durable Object](https://chat-room-do-worker.anoopkv4952.workers.dev) — Handles real-time streaming of messages via SSE
+- [Retrieve Chat](https://chat-retrieve-worker.anoopkv4952.workers.dev) — Fetch stored messages for a given chat session
+- [List Chats](https://chat-list-worker.anoopkv4952.workers.dev) — List all chat sessions available for a user
+
 
 ## ⚙️ Architecture Overview
 
